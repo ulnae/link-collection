@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "链接收集",
+  "version": "1.0.0",
+  "description": "一键识别页面中的图片、音频、视频、iframe、脚本、样式六大类资源链接，悬浮窗分类展示与复制。",
+  "permissions": [],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["link-easy.content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
