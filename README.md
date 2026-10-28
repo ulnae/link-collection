@@ -28,9 +28,10 @@
 
 识别规则：
 
-- 仅保留 **http/https** 协议的链接，相对路径自动解析为绝对路径；空 src、纯锚点（`#`）等无效引用会被排除；
+- **扫描范围**：除主文档外，还会**递归扫描同源 iframe**（编辑器、弹窗等 iframe 内的资源同样被识别）与**开放的 Shadow DOM**，跨域 iframe 因浏览器安全限制无法读取；
+- 仅保留 **http/https** 协议的链接，相对路径以所在文档的 `baseURI`（尊重 `<base href>`）自动解析为绝对路径；空 src、纯锚点（`#`）等无效引用会被排除；
 - 结果自动**去重**；每个分类在 tab 上实时显示数量；
-- 样式表通过 CSSOM 解析（`@font-face` / `@import` / `background-image`），跨域外链 CSS 因权限限制无法读取其内部规则；
+- 样式表通过 CSSOM 解析（`@font-face` / `@import` / `background-image`），CSS 内的相对 url() 以该样式表自身地址为基准解析，跨域外链 CSS 因权限限制无法读取其内部规则；
 - 七个分类 tab 在悬浮窗较窄时横向滑动（无滚动条），当前选中项自动居中显示。
 
 ### 3. 悬浮窗（识别完毕后自动弹出）
@@ -135,7 +136,7 @@ link-collection/
 - **入口**：`src/content.ts` 是内容脚本主逻辑，构建为 IIFE 格式的 `dist/content.js`，在 `document_idle` 时机注入所有页面（`<all_urls>`），通过 `#link-collection-host` 宿主元素 + `attachShadow` 防止重复注入；
 - **双入口构建**：`scripts/build.mjs` 用 Vite JS API 分两次打包（content 与 background 各自为独立 IIFE），避免 IIFE 不支持多入口代码分割的限制；dev 模式加 `--watch` 参数监听变更；
 - **样式**：`src/style.ts` 导出 CSS 字符串，在 Shadow DOM 内生效——修改 UI 外观只需改这里，无需处理与页面样式的冲突；
-- **识别逻辑**：`scanLinks()` 集中在 `content.ts` 中，按分类查询 DOM 并过滤 http/https，如需新增分类，在 `CATS` 数组和 `scanLinks()` 中同步扩展即可；
+- **识别逻辑**：`collectScanRoots()` 递归收集主文档、同源 iframe 文档与开放的 Shadow Root，`scanRoot()` 对每个根按分类查询元素并解析 http/https；如需新增分类，在 `CATS` 数组和 `scanRoot()` 中同步扩展即可；
 - **搜索高亮**：`matchLinks()` 做忽略大小写的关键词过滤，`findRanges()` + `buildHighlighted()` 计算并渲染命中区间；
 - **图片懒加载**：`setupLazyImages()` 用 IntersectionObserver（root 为列表容器，rootMargin 300px）按需设置缩略图 src，`unobserve` 保证每张图只加载一次；
 - **媒体行**：视频/音频行默认为普通单行（含「播放」按钮），展开后通过 `data-open="true"` 切换为纵向卡片（`.le-row-media` + `.le-meta` + 隐藏的 `.le-player-slot`）；播放器首次展开时才创建；
@@ -147,7 +148,7 @@ link-collection/
 ## 四、常见问题
 
 **Q：识别不到某些链接？**
-插件只扫描 DOM 中的静态资源标签（img/audio/video/iframe/script/link 及背景图）。由 JS 动态创建且扫描时尚未插入 DOM 的元素不会被统计，等页面加载完成后可再点一次悬浮按钮重新识别。
+插件扫描 DOM 中的静态资源标签（img/audio/video/iframe/script/link 及背景图），并会递归扫描同源 iframe 与开放的 Shadow DOM。仍识别不到的情况：资源位于**跨域 iframe** 内（浏览器安全限制无法读取）；或元素由 JS 动态创建且扫描时尚未插入 DOM，等页面加载完成后可再点一次悬浮按钮重新识别。
 
 **Q：图片缩略图显示「失效」？**
 目标图片服务器禁止外站直接加载（防盗链）或链接已失效。链接本身仍可复制和打开。

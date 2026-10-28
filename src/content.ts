@@ -101,12 +101,16 @@ function init(): void {
     };
   }
 
-  /** 仅保留 http/https 绝对链接（排除空值、纯锚点等无效引用） */
-  function toHttpUrl(raw: string | null | undefined): string | null {
+  /** 仅保留 http/https 绝对链接（排除空值、纯锚点等无效引用）
+   *  base 为解析基准：默认主页面地址，iframe/Shadow DOM 内使用其文档自身的 baseURI */
+  function toHttpUrl(
+    raw: string | null | undefined,
+    base: string = location.href
+  ): string | null {
     if (!raw || !raw.trim()) return null;
     if (raw.trimStart().startsWith('#')) return null;
     try {
-      const u = new URL(raw, location.href);
+      const u = new URL(raw, base);
       return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : null;
     } catch {
       return null;
@@ -125,135 +129,208 @@ function init(): void {
   }
 
   /* ---------- 链接识别 ---------- */
-  function scanLinks(): Record<CatKey, string[]> {
-    const result = createEmptyMap();
-    const push = (key: CatKey, url: string | null) => {
+
+  /** 从 CSS 文本中提取所有 url(...) 引用 */
+  function extractUrls(cssText: string): string[] {
+    const out: string[] = [];
+    const re = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(cssText))) out.push(m[2]);
+    return out;
+  }
+
+  /** 递归收集扫描根：主文档、同源 iframe 文档、开放的 Shadow Root。
+   *  诸如禅道等系统会把编辑器/弹窗渲染在 iframe 或 Shadow DOM 中，
+   *  仅扫描主文档会漏掉其中的资源；跨域 iframe 无权访问，自动跳过。 */
+  function collectScanRoots(): (Document | ShadowRoot)[] {
+    const roots: (Document | ShadowRoot)[] = [];
+    const seenDocs = new Set<Document>();
+    const seenShadows = new Set<ShadowRoot>();
+
+    const pushDoc = (doc: Document | null) => {
+      if (!doc || !doc.body || seenDocs.has(doc)) return;
+      seenDocs.add(doc);
+      roots.push(doc);
+      doc.querySelectorAll('iframe, frame').forEach((f) => {
+        try {
+          pushDoc((f as HTMLIFrameElement).contentDocument);
+        } catch {
+          /* 跨域 iframe 无法访问 contentDocument */
+        }
+      });
+    };
+
+    const pushShadows = (root: Document | ShadowRoot) => {
+      root.querySelectorAll('*').forEach((el) => {
+        const sr = el.shadowRoot;
+        if (!sr || seenShadows.has(sr)) return;
+        seenShadows.add(sr);
+        roots.push(sr);
+        sr.querySelectorAll('iframe, frame').forEach((f) => {
+          try {
+            pushDoc((f as HTMLIFrameElement).contentDocument);
+          } catch {
+            /* 跨域 iframe */
+          }
+        });
+        pushShadows(sr);
+      });
+    };
+
+    pushDoc(document);
+    seenDocs.forEach((d) => pushShadows(d));
+    return roots;
+  }
+
+  /** 扫描单个根（Document 或 ShadowRoot）内的资源元素，结果写入 result */
+  function scanRoot(
+    root: Document | ShadowRoot,
+    result: Record<CatKey, string[]>
+  ): void {
+    // 相对路径以所在文档的 baseURI 为解析基准（尊重 <base href>）
+    const base =
+      root instanceof Document
+        ? root.baseURI || location.href
+        : root.host?.ownerDocument?.baseURI || location.href;
+    const push = (key: CatKey, raw: string | null) => {
+      const url = toHttpUrl(raw, base);
       if (url) result[key].push(url);
     };
 
     /** CSS url() 资源按扩展名归类：字体 → font，图片 → image，其余忽略 */
     const pushCssUrl = (raw: string) => {
-      const url = toHttpUrl(raw);
+      const url = toHttpUrl(raw, base);
       if (!url) return;
-      if (FONT_EXT_RE.test(url)) push('font', url);
-      else if (IMAGE_EXT_RE.test(url)) push('image', url);
-    };
-    const extractUrls = (cssText: string): string[] => {
-      const out: string[] = [];
-      const re = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi;
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(cssText))) out.push(m[2]);
-      return out;
+      if (FONT_EXT_RE.test(url)) result.font.push(url);
+      else if (IMAGE_EXT_RE.test(url)) result.image.push(url);
     };
 
     // 图片资源：img / picture > source / srcset / svg image
-    document.querySelectorAll('img').forEach((el) => {
-      push('image', toHttpUrl(el.getAttribute('src')));
+    root.querySelectorAll('img').forEach((el) => {
+      push('image', el.getAttribute('src'));
       const ss = el.getAttribute('srcset');
-      if (ss) parseSrcset(ss).forEach((u) => push('image', toHttpUrl(u)));
+      if (ss) parseSrcset(ss).forEach((u) => push('image', u));
     });
-    document.querySelectorAll('picture source').forEach((el) => {
-      push('image', toHttpUrl(el.getAttribute('src')));
+    root.querySelectorAll('picture source').forEach((el) => {
+      push('image', el.getAttribute('src'));
       const ss = el.getAttribute('srcset');
-      if (ss) parseSrcset(ss).forEach((u) => push('image', toHttpUrl(u)));
+      if (ss) parseSrcset(ss).forEach((u) => push('image', u));
     });
-    document.querySelectorAll('svg image').forEach((el) => {
-      push(
-        'image',
-        toHttpUrl(el.getAttribute('href') || el.getAttribute('xlink:href'))
-      );
+    root.querySelectorAll('svg image').forEach((el) => {
+      push('image', el.getAttribute('href') || el.getAttribute('xlink:href'));
     });
     // 内联 style 属性中的 url()（按扩展名归类，字体不再混入图片）
-    document.querySelectorAll('[style]').forEach((el) => {
+    root.querySelectorAll('[style]').forEach((el) => {
       extractUrls(el.getAttribute('style') || '').forEach(pushCssUrl);
     });
 
-    // 样式表（CSSOM）：background-image、@font-face、@import
-    // 可同时覆盖 <style> 标签与同源外链 CSS；跨域样式表读取会被拒绝，跳过
-    try {
-      for (const sheet of Array.from(document.styleSheets)) {
-        let rules: CSSRuleList;
-        try {
-          rules = sheet.cssRules;
-        } catch {
-          continue; // 跨域样式表无权读取
-        }
-        for (const rule of Array.from(rules)) {
-          if (rule instanceof CSSFontFaceRule) {
-            extractUrls(rule.style.getPropertyValue('src')).forEach((u) =>
-              push('font', toHttpUrl(u))
-            );
-          } else if (rule instanceof CSSImportRule) {
-            push('css', toHttpUrl(rule.href));
-          } else if (rule instanceof CSSStyleRule) {
-            extractUrls(rule.style.backgroundImage || '').forEach(pushCssUrl);
-          }
-        }
-      }
-    } catch {
-      /* 某些环境访问 styleSheets 可能受限，忽略 */
-    }
-
     // 音频资源
-    document.querySelectorAll('audio').forEach((el) => {
-      push('audio', toHttpUrl(el.getAttribute('src')));
+    root.querySelectorAll('audio').forEach((el) => {
+      push('audio', el.getAttribute('src'));
     });
-    document.querySelectorAll('audio source, video source').forEach((el) => {
-      const src = toHttpUrl(el.getAttribute('src'));
+    root.querySelectorAll('audio source, video source').forEach((el) => {
+      const src = toHttpUrl(el.getAttribute('src'), base);
       if (!src) return;
       const type = (el.getAttribute('type') || '').toLowerCase();
       const url = src.toLowerCase();
       const parent = el.parentElement?.tagName.toLowerCase();
       if (parent === 'audio' || type.startsWith('audio') || /\.(mp3|wav|ogg|m4a|aac|flac)([?#]|$)/.test(url)) {
-        push('audio', src);
+        result.audio.push(src);
       } else if (parent === 'video' || type.startsWith('video') || /\.(mp4|webm|ogv|mov|m4v)([?#]|$)/.test(url)) {
-        push('video', src);
+        result.video.push(src);
       }
     });
 
     // 视频资源
-    document.querySelectorAll('video').forEach((el) => {
-      push('video', toHttpUrl(el.getAttribute('src')));
+    root.querySelectorAll('video').forEach((el) => {
+      push('video', el.getAttribute('src'));
     });
 
     // 嵌入浏览上下文 / 页面
-    document.querySelectorAll('iframe, frame').forEach((el) => {
-      push('iframe', toHttpUrl(el.getAttribute('src')));
+    root.querySelectorAll('iframe, frame').forEach((el) => {
+      push('iframe', el.getAttribute('src'));
     });
-    document.querySelectorAll('object[data]').forEach((el) => {
-      const d = toHttpUrl(el.getAttribute('data'));
-      if (d && /\.html?([?#]|$)/i.test(d)) push('iframe', d);
+    root.querySelectorAll('object[data]').forEach((el) => {
+      const d = toHttpUrl(el.getAttribute('data'), base);
+      if (d && /\.html?([?#]|$)/i.test(d)) result.iframe.push(d);
     });
 
     // 脚本资源（补充：modulepreload / preload as=script）
-    document.querySelectorAll('script[src]').forEach((el) => {
-      push('script', toHttpUrl(el.getAttribute('src')));
+    root.querySelectorAll('script[src]').forEach((el) => {
+      push('script', el.getAttribute('src'));
     });
-    document
+    root
       .querySelectorAll<HTMLLinkElement>(
         'link[rel="modulepreload"][href], link[rel="preload"][as="script"][href]'
       )
       .forEach((el) => {
-        push('script', toHttpUrl(el.getAttribute('href')));
+        push('script', el.getAttribute('href'));
       });
 
     // 外链样式资源（补充：preload as=style）
-    document
+    root
       .querySelectorAll<HTMLLinkElement>(
         'link[rel~="stylesheet"][href], link[rel="preload"][as="style"][href]'
       )
       .forEach((el) => {
-        push('css', toHttpUrl(el.getAttribute('href')));
+        push('css', el.getAttribute('href'));
       });
 
     // 字体资源（补充：preload as=font）
-    document
+    root
       .querySelectorAll<HTMLLinkElement>(
         'link[rel="preload"][as="font"][href], link[rel="preconnect"][as="font"][href]'
       )
       .forEach((el) => {
-        push('font', toHttpUrl(el.getAttribute('href')));
+        push('font', el.getAttribute('href'));
       });
+  }
+
+  function scanLinks(): Record<CatKey, string[]> {
+    const result = createEmptyMap();
+
+    for (const root of collectScanRoots()) {
+      scanRoot(root, result);
+
+      // 样式表（CSSOM）：background-image、@font-face、@import
+      // 仅 Document 有 styleSheets；可覆盖 <style> 标签与同源外链 CSS；
+      // 相对引用以该样式表的地址为基准解析（正确处理 CSS 内的相对路径）
+      if (root instanceof Document) {
+        try {
+          for (const sheet of Array.from(root.styleSheets)) {
+            let rules: CSSRuleList;
+            try {
+              rules = sheet.cssRules;
+            } catch {
+              continue; // 跨域样式表无权读取
+            }
+            const cssBase = sheet.href || root.baseURI || location.href;
+            const pushCssUrl = (raw: string) => {
+              const url = toHttpUrl(raw, cssBase);
+              if (!url) return;
+              if (FONT_EXT_RE.test(url)) result.font.push(url);
+              else if (IMAGE_EXT_RE.test(url)) result.image.push(url);
+            };
+            for (const rule of Array.from(rules)) {
+              if (rule instanceof CSSFontFaceRule) {
+                extractUrls(rule.style.getPropertyValue('src')).forEach(
+                  pushCssUrl
+                );
+              } else if (rule instanceof CSSImportRule) {
+                const url = toHttpUrl(rule.href, cssBase);
+                if (url) result.css.push(url);
+              } else if (rule instanceof CSSStyleRule) {
+                extractUrls(rule.style.backgroundImage || '').forEach(
+                  pushCssUrl
+                );
+              }
+            }
+          }
+        } catch {
+          /* 某些环境访问 styleSheets 可能受限，忽略 */
+        }
+      }
+    }
 
     (Object.keys(result) as CatKey[]).forEach((k) => {
       result[k] = dedupe(result[k]);
