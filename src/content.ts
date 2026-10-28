@@ -561,7 +561,31 @@ function init(): void {
       .replace(/"/g, '&quot;');
   }
 
-  /** 构建单行：[缩略图(图片)] 链接(高亮) [下载] [复制] */
+  /** 创建媒体播放器（视频卡片 / 音频胶囊），preload=none 点击播放才请求 */
+  function createMediaPlayer(
+    url: string,
+    kind: 'video' | 'audio'
+  ): HTMLElement {
+    if (kind === 'video') {
+      const video = document.createElement('video');
+      video.className = 'le-player-video';
+      video.controls = true;
+      video.preload = 'none';
+      video.src = url;
+      return video;
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'le-player-audio-wrap';
+    const audio = document.createElement('audio');
+    audio.className = 'le-player-audio';
+    audio.controls = true;
+    audio.preload = 'none';
+    audio.src = url;
+    wrap.appendChild(audio);
+    return wrap;
+  }
+
+  /** 构建单行：[缩略图(图片)] 链接(高亮) [播放/关闭] [下载] [复制] */
   function buildRow(url: string): HTMLDivElement {
     const row = document.createElement('div');
     row.className = 'le-row';
@@ -607,7 +631,53 @@ function init(): void {
     btn.addEventListener('click', () => copyText(url));
     btns.appendChild(btn);
 
-    row.append(a, btns);
+    if (activeTab === 'video' || activeTab === 'audio') {
+      // 媒体行：默认仅显示链接与按钮，点击「播放」展开播放器，按钮变为「关闭」
+      row.classList.add('le-row-media');
+
+      const meta = document.createElement('div');
+      meta.className = 'le-meta';
+      meta.append(a, btns);
+
+      const slot = document.createElement('div');
+      slot.className = 'le-player-slot';
+      slot.hidden = true;
+
+      const playBtn = document.createElement('button');
+      playBtn.className = 'le-play';
+      playBtn.textContent = '播放';
+      playBtn.title = '展开播放器';
+      let opened = false;
+      let player: HTMLElement | null = null;
+      playBtn.addEventListener('click', () => {
+        opened = !opened;
+        if (opened) {
+          if (!player) {
+            player = createMediaPlayer(url, activeTab as 'video' | 'audio');
+            slot.appendChild(player);
+          }
+          slot.hidden = false;
+          row.dataset.open = 'true';
+          playBtn.textContent = '关闭';
+          playBtn.classList.add('le-open');
+          playBtn.title = '收起播放器';
+          row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else {
+          row.dataset.open = 'false';
+          slot.hidden = true;
+          const media = player?.querySelector('video, audio');
+          if (media instanceof HTMLMediaElement) media.pause();
+          playBtn.textContent = '播放';
+          playBtn.classList.remove('le-open');
+          playBtn.title = '展开播放器';
+        }
+      });
+      btns.prepend(playBtn);
+
+      row.append(meta, slot);
+    } else {
+      row.append(a, btns);
+    }
     return row;
   }
 

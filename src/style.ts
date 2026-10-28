@@ -268,6 +268,82 @@ export const CSS = /* css */ `
 .le-row:hover {
   background: rgba(0, 122, 255, 0.05);
 }
+
+/* 媒体行（视频 / 音频）：默认单行，点击「播放」展开播放器后变纵向卡片 */
+.le-row-media {
+  height: 50px;
+}
+.le-row-media[data-open="true"] {
+  flex-direction: column;
+  align-items: stretch;
+  height: auto;
+  padding: 10px 14px;
+  gap: 8px;
+  background: rgba(0, 122, 255, 0.04);
+}
+.le-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.le-player-slot {
+  display: none;
+  width: 100%;
+}
+.le-row-media[data-open="true"] .le-player-slot {
+  display: block;
+}
+.le-player-video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 260px;
+  border-radius: 12px;
+  background: #000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+  outline: none;
+  display: block;
+}
+.le-player-audio-wrap {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(118, 118, 128, 0.14);
+}
+.le-player-audio {
+  width: 100%;
+  height: 32px;
+  outline: none;
+}
+/* 播放 / 关闭 双态按钮 */
+.le-play {
+  flex: none;
+  width: 60px;
+  padding: 4px 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(175, 82, 222, 0.12);
+  color: #af52de;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+.le-play:hover {
+  background: rgba(175, 82, 222, 0.22);
+}
+.le-play:active {
+  transform: scale(0.94);
+}
+.le-play.le-open {
+  background: rgba(255, 59, 48, 0.12);
+  color: #ff3b30;
+}
+.le-play.le-open:hover {
+  background: rgba(255, 59, 48, 0.22);
+}
 .le-btns {
   flex: none;
   display: flex;
