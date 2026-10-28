@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Link Collection",
   "version": "1.0.0",
-  "description": "一键识别页面中的图片、音频、视频、iframe、脚本、样式等资源链接，悬浮窗分类展示与复制。",
+  "description": "一键识别页面中的图片、音频、视频、iframe、脚本、样式、字体等资源链接，悬浮窗分类展示、搜索、下载与复制。",
   "icons": {
     "16": "assets/icon-16.png",
     "32": "assets/icon-32.png",
@@ -16,7 +16,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["link-easy.content.js"],
+      "js": ["content.js"],
       "run_at": "document_idle"
     }
   ]

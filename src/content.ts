@@ -1,7 +1,7 @@
 import { CSS } from './style';
 
 /* ============================================================
- * link-easy 内容脚本
+ * Link Collection 内容脚本
  * 悬浮按钮 + 六大类链接识别 + iOS 风格悬浮窗
  * ============================================================ */
 
@@ -36,8 +36,8 @@ const FONT_EXT_RE = /\.(woff2?|ttf|otf|eot)([?#]|$)/i;
 /** 图片懒加载预取边距：距离可视区 300px 内即开始加载（仅一次） */
 const LAZY_ROOT_MARGIN = '300px';
 
-const HOST_ID = 'link-easy-host';
-const FAB_POS_KEY = 'link-easy:fab-pos';
+const HOST_ID = 'link-collection-host';
+const FAB_POS_KEY = 'link-collection:fab-pos';
 const FAB_SIZE = 54;
 
 /** Element UI el-icon-link 图形（与插件图标一致） */
@@ -51,7 +51,7 @@ const ICON_EMPTY = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.or
 </svg>`;
 
 const ICON_CLOSE = `<svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6"/></svg>`;
-const ICON_RESIZE = `<svg class="le-resize-icon" viewBox="0 0 14 14">
+const ICON_RESIZE = `<svg class="lc-resize-icon" viewBox="0 0 14 14">
   <path d="M12.5 5.5 5.5 12.5M12.5 9.5 9.5 12.5M12.5 1.5 1.5 12.5"/>
 </svg>`;
 
@@ -263,8 +263,8 @@ function init(): void {
 
   /* ---------- 悬浮按钮 (FAB) ---------- */
   const fab = document.createElement('button');
-  fab.className = 'le-fab';
-  fab.title = 'link-easy：识别页面链接';
+  fab.className = 'lc-fab';
+  fab.title = 'Link Collection：识别页面链接';
   fab.innerHTML = ICON_LINK;
   shadow.appendChild(fab);
 
@@ -337,12 +337,12 @@ function init(): void {
       // 已有面板：再次点击唤起（保持在原位）
       return;
     }
-    fab.classList.add('le-busy');
+    fab.classList.add('lc-busy');
     fab.style.pointerEvents = 'none';
     // 让浏览器先渲染 loading 状态
     setTimeout(() => {
       linkMap = scanLinks();
-      fab.classList.remove('le-busy');
+      fab.classList.remove('lc-busy');
       fab.style.pointerEvents = '';
       openPanel();
     }, 60);
@@ -360,7 +360,7 @@ function init(): void {
     const top = Math.round((innerHeight - h) / 2);
 
     panel = document.createElement('div');
-    panel.className = 'le-panel';
+    panel.className = 'lc-panel';
     panel.style.width = `${w}px`;
     panel.style.height = `${h}px`;
     panel.style.left = `${left}px`;
@@ -368,24 +368,24 @@ function init(): void {
 
     // 头部：图标徽章 + 标题 / 总数胶囊 / 关闭按钮
     const header = document.createElement('div');
-    header.className = 'le-header';
+    header.className = 'lc-header';
 
     const titleWrap = document.createElement('span');
-    titleWrap.className = 'le-title-wrap';
+    titleWrap.className = 'lc-title-wrap';
     const titleIcon = document.createElement('span');
-    titleIcon.className = 'le-title-icon';
+    titleIcon.className = 'lc-title-icon';
     titleIcon.innerHTML = ICON_LINK;
     const title = document.createElement('span');
-    title.className = 'le-title';
+    title.className = 'lc-title';
     title.textContent = 'Link Collection';
     titleWrap.append(titleIcon, title);
 
     countEl = document.createElement('span');
-    countEl.className = 'le-count';
+    countEl.className = 'lc-count';
     countEl.innerHTML = `共 <b>${total}</b> 条`;
 
     const btnClose = document.createElement('button');
-    btnClose.className = 'le-close';
+    btnClose.className = 'lc-close';
     btnClose.title = '关闭';
     btnClose.innerHTML = ICON_CLOSE;
     btnClose.addEventListener('click', () => closePanel());
@@ -395,17 +395,17 @@ function init(): void {
 
     // 分段控制器（窄窗口时横向滑动，选中项自动居中）
     const tabs = document.createElement('div');
-    tabs.className = 'le-tabs';
+    tabs.className = 'lc-tabs';
     CATS.forEach((cat) => {
       const tab = document.createElement('button');
-      tab.className = 'le-tab' + (cat.key === activeTab ? ' le-active' : '');
+      tab.className = 'lc-tab' + (cat.key === activeTab ? ' lc-active' : '');
       tab.dataset.key = cat.key;
       tab.textContent = `${cat.label} ${linkMap[cat.key].length}`;
       tab.addEventListener('click', () => {
         activeTab = cat.key;
         tabs
-          .querySelectorAll('.le-tab')
-          .forEach((t) => t.classList.toggle('le-active', t === tab));
+          .querySelectorAll('.lc-tab')
+          .forEach((t) => t.classList.toggle('lc-active', t === tab));
         centerTab(tabs, tab);
         renderList();
       });
@@ -415,13 +415,13 @@ function init(): void {
 
     // 搜索框（模糊检索、忽略大小写、高亮匹配）
     const searchWrap = document.createElement('div');
-    searchWrap.className = 'le-search-wrap';
+    searchWrap.className = 'lc-search-wrap';
     const searchIcon = document.createElement('span');
-    searchIcon.className = 'le-search-icon';
+    searchIcon.className = 'lc-search-icon';
     searchIcon.innerHTML =
       '<svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16.5 16.5 21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
     const searchInput = document.createElement('input');
-    searchInput.className = 'le-search';
+    searchInput.className = 'lc-search';
     searchInput.type = 'text';
     searchInput.placeholder = '搜索链接，多个关键词用空格分隔';
     searchInput.spellcheck = false;
@@ -430,18 +430,18 @@ function init(): void {
       renderList();
     });
     matchEl = document.createElement('span');
-    matchEl.className = 'le-search-count';
+    matchEl.className = 'lc-search-count';
     searchWrap.append(searchIcon, searchInput, matchEl);
     panel.appendChild(searchWrap);
 
     // 列表（全量渲染 + 图片懒加载：进入视口才发起请求，仅加载一次）
     listEl = document.createElement('div');
-    listEl.className = 'le-list';
+    listEl.className = 'lc-list';
     panel.appendChild(listEl);
 
     // 缩放手柄
     const resize = document.createElement('div');
-    resize.className = 'le-resize';
+    resize.className = 'lc-resize';
     resize.title = '拖拽调整窗口大小';
     resize.innerHTML = ICON_RESIZE;
     panel.appendChild(resize);
@@ -449,13 +449,13 @@ function init(): void {
     shadow.appendChild(panel);
 
     // 拖拽移动（仅头部，排除关闭按钮）
-    makeDraggable(panel, header, ['.le-close']);
+    makeDraggable(panel, header, ['.lc-close']);
     // 右下角缩放
     makeResizable(panel, resize);
 
     renderList();
     // 初始将当前选中的 tab 居中
-    const activeTabEl = tabs.querySelector<HTMLButtonElement>('.le-tab.le-active');
+    const activeTabEl = tabs.querySelector<HTMLButtonElement>('.lc-tab.lc-active');
     if (activeTabEl) centerTab(tabs, activeTabEl);
   }
 
@@ -517,7 +517,7 @@ function init(): void {
     for (const [start, end] of findRanges(url, tokens)) {
       if (start > pos) frag.appendChild(document.createTextNode(url.slice(pos, start)));
       const mark = document.createElement('mark');
-      mark.className = 'le-hl';
+      mark.className = 'lc-hl';
       mark.textContent = url.slice(start, end);
       frag.appendChild(mark);
       pos = end;
@@ -530,7 +530,7 @@ function init(): void {
   function setupLazyImages(): void {
     lazyObserver?.disconnect();
     if (!listEl) return;
-    const imgs = listEl.querySelectorAll<HTMLImageElement>('img.le-thumb[data-src]');
+    const imgs = listEl.querySelectorAll<HTMLImageElement>('img.lc-thumb[data-src]');
     if (imgs.length === 0) return;
 
     lazyObserver = new IntersectionObserver(
@@ -569,16 +569,16 @@ function init(): void {
   ): HTMLElement {
     if (kind === 'video') {
       const video = document.createElement('video');
-      video.className = 'le-player-video';
+      video.className = 'lc-player-video';
       video.controls = true;
       video.preload = 'none';
       video.src = url;
       return video;
     }
     const wrap = document.createElement('div');
-    wrap.className = 'le-player-audio-wrap';
+    wrap.className = 'lc-player-audio-wrap';
     const audio = document.createElement('audio');
-    audio.className = 'le-player-audio';
+    audio.className = 'lc-player-audio';
     audio.controls = true;
     audio.preload = 'none';
     audio.src = url;
@@ -589,16 +589,16 @@ function init(): void {
   /** 构建单行：[缩略图(图片)] 链接(高亮) [播放/关闭] [下载] [复制] */
   function buildRow(url: string): HTMLDivElement {
     const row = document.createElement('div');
-    row.className = 'le-row';
+    row.className = 'lc-row';
 
     // 图片分类：链接前显示缩略预览（懒加载，src 由 IntersectionObserver 按需设置）
     if (activeTab === 'image') {
       const thumb = document.createElement('img');
-      thumb.className = 'le-thumb';
+      thumb.className = 'lc-thumb';
       thumb.dataset.src = url;
       thumb.referrerPolicy = 'no-referrer';
       thumb.onerror = () => {
-        thumb.classList.add('le-thumb-error');
+        thumb.classList.add('lc-thumb-error');
         thumb.removeAttribute('src');
         thumb.textContent = '失效';
       };
@@ -606,7 +606,7 @@ function init(): void {
     }
 
     const a = document.createElement('a');
-    a.className = 'le-link';
+    a.className = 'lc-link';
     a.href = url;
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
@@ -614,12 +614,12 @@ function init(): void {
     a.appendChild(buildHighlighted(url));
 
     const btns = document.createElement('span');
-    btns.className = 'le-btns';
+    btns.className = 'lc-btns';
 
     // 嵌入页面之外的所有分类提供下载按钮
     if (activeTab !== 'iframe') {
       const dl = document.createElement('button');
-      dl.className = 'le-dl';
+      dl.className = 'lc-dl';
       dl.textContent = '下载';
       dl.title = '下载该资源';
       dl.addEventListener('click', () => downloadFile(url));
@@ -627,25 +627,25 @@ function init(): void {
     }
 
     const btn = document.createElement('button');
-    btn.className = 'le-copy';
+    btn.className = 'lc-copy';
     btn.textContent = '复制';
     btn.addEventListener('click', () => copyText(url));
     btns.appendChild(btn);
 
     if (activeTab === 'video' || activeTab === 'audio') {
       // 媒体行：默认仅显示链接与按钮，点击「播放」展开播放器，按钮变为「关闭」
-      row.classList.add('le-row-media');
+      row.classList.add('lc-row-media');
 
       const meta = document.createElement('div');
-      meta.className = 'le-meta';
+      meta.className = 'lc-meta';
       meta.append(a, btns);
 
       const slot = document.createElement('div');
-      slot.className = 'le-player-slot';
+      slot.className = 'lc-player-slot';
       slot.hidden = true;
 
       const playBtn = document.createElement('button');
-      playBtn.className = 'le-play';
+      playBtn.className = 'lc-play';
       playBtn.textContent = '播放';
       playBtn.title = '展开播放器';
       let opened = false;
@@ -660,7 +660,7 @@ function init(): void {
           slot.hidden = false;
           row.dataset.open = 'true';
           playBtn.textContent = '关闭';
-          playBtn.classList.add('le-open');
+          playBtn.classList.add('lc-open');
           playBtn.title = '收起播放器';
           row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         } else {
@@ -669,7 +669,7 @@ function init(): void {
           const media = player?.querySelector('video, audio');
           if (media instanceof HTMLMediaElement) media.pause();
           playBtn.textContent = '播放';
-          playBtn.classList.remove('le-open');
+          playBtn.classList.remove('lc-open');
           playBtn.title = '展开播放器';
         }
       });
@@ -700,7 +700,7 @@ function init(): void {
 
     if (filteredLinks.length === 0) {
       const empty = document.createElement('div');
-      empty.className = 'le-empty';
+      empty.className = 'lc-empty';
       empty.style.height = `${Math.max(listEl.clientHeight, 120)}px`;
       empty.innerHTML = activeTabIsEmpty()
         ? `${ICON_EMPTY}<span>当前分类未识别到链接</span>`
@@ -772,9 +772,9 @@ function init(): void {
 
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   function showToast(msg: string): void {
-    shadow.querySelectorAll('.le-toast').forEach((t) => t.remove());
+    shadow.querySelectorAll('.lc-toast').forEach((t) => t.remove());
     const toast = document.createElement('div');
-    toast.className = 'le-toast';
+    toast.className = 'lc-toast';
     toast.textContent = msg;
     shadow.appendChild(toast);
     if (toastTimer) clearTimeout(toastTimer);

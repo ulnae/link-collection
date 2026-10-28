@@ -1,5 +1,5 @@
 /**
- * link-easy 后台 Service Worker
+ * Link Collection 后台 Service Worker
  * 负责调用 chrome.downloads API 完成文件下载（内容脚本无此权限）
  */
 

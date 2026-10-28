@@ -1,5 +1,5 @@
 /**
- * link-easy 构建脚本
+ * Link Collection 构建脚本
  * 分别以 IIFE 格式打包 content 脚本与 background service worker，
  * 并将 manifest.json 与插件图标拷贝到 dist/
  *
@@ -53,7 +53,7 @@ await build({
     rollupOptions: {
       input: resolve(root, 'src/content.ts'),
       output: {
-        entryFileNames: 'link-easy.content.js',
+        entryFileNames: 'content.js',
         format: 'iife',
         inlineDynamicImports: true
       }

@@ -1,4 +1,4 @@
-/** link-easy iOS 风格样式（注入到 Shadow DOM 中，与页面完全隔离） */
+/** Link Collection iOS 风格样式（注入到 Shadow DOM 中，与页面完全隔离） */
 export const CSS = /* css */ `
 :host {
   all: initial;
@@ -14,7 +14,7 @@ export const CSS = /* css */ `
 }
 
 /* ---------- 悬浮按钮 (FAB) ---------- */
-.le-fab {
+.lc-fab {
   position: fixed;
   z-index: 2147483647;
   width: 54px;
@@ -33,15 +33,15 @@ export const CSS = /* css */ `
   touch-action: none;
   user-select: none;
 }
-.le-fab:active {
+.lc-fab:active {
   transform: scale(0.92);
   cursor: grabbing;
 }
-.le-fab:hover {
+.lc-fab:hover {
   box-shadow: 0 10px 28px rgba(10, 132, 255, 0.55),
     0 3px 8px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.35);
 }
-.le-fab svg {
+.lc-fab svg {
   width: 26px;
   height: 26px;
   pointer-events: none;
@@ -49,7 +49,7 @@ export const CSS = /* css */ `
 }
 
 /* ---------- 悬浮窗 ---------- */
-.le-panel {
+.lc-panel {
   position: fixed;
   z-index: 2147483647;
   display: flex;
@@ -62,10 +62,10 @@ export const CSS = /* css */ `
   border: 1px solid rgba(255, 255, 255, 0.65);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28),
     0 4px 14px rgba(0, 0, 0, 0.12);
-  animation: le-pop 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+  animation: lc-pop 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
   touch-action: none;
 }
-@keyframes le-pop {
+@keyframes lc-pop {
   from {
     opacity: 0;
     transform: scale(0.9);
@@ -77,7 +77,7 @@ export const CSS = /* css */ `
 }
 
 /* 头部 */
-.le-header {
+.lc-header {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -87,17 +87,17 @@ export const CSS = /* css */ `
   user-select: none;
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.14);
 }
-.le-header:active {
+.lc-header:active {
   cursor: grabbing;
 }
-.le-title-wrap {
+.lc-title-wrap {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 9px;
 }
-.le-title-icon {
+.lc-title-icon {
   flex: none;
   width: 28px;
   height: 28px;
@@ -109,13 +109,13 @@ export const CSS = /* css */ `
   box-shadow: 0 2px 6px rgba(0, 122, 255, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
-.le-title-icon svg {
+.lc-title-icon svg {
   width: 15px;
   height: 15px;
   display: block;
   pointer-events: none;
 }
-.le-title {
+.lc-title {
   font-size: 15px;
   font-weight: 600;
   color: #1c1c1e;
@@ -124,7 +124,7 @@ export const CSS = /* css */ `
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.le-count {
+.lc-count {
   flex: none;
   font-size: 12px;
   font-weight: 500;
@@ -134,13 +134,13 @@ export const CSS = /* css */ `
   padding: 4px 11px;
   white-space: nowrap;
 }
-.le-count b {
+.lc-count b {
   font-size: 13px;
   font-weight: 700;
   color: #007aff;
   font-variant-numeric: tabular-nums;
 }
-.le-close {
+.lc-close {
   flex: none;
   width: 30px;
   height: 30px;
@@ -154,7 +154,7 @@ export const CSS = /* css */ `
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
 }
-.le-close svg {
+.lc-close svg {
   width: 13px;
   height: 13px;
   display: block;
@@ -165,19 +165,19 @@ export const CSS = /* css */ `
   pointer-events: none;
   transition: stroke 0.15s ease;
 }
-.le-close:hover {
+.lc-close:hover {
   background: #ff3b30;
   transform: scale(1.06);
 }
-.le-close:hover svg {
+.lc-close:hover svg {
   stroke: #fff;
 }
-.le-close:active {
+.lc-close:active {
   transform: scale(0.92);
 }
 
 /* 分段控制器 (Segmented Control) */
-.le-tabs {
+.lc-tabs {
   flex: none;
   display: flex;
   gap: 2px;
@@ -189,10 +189,10 @@ export const CSS = /* css */ `
   scrollbar-width: none; /* 隐藏滚动条 */
   scroll-behavior: smooth;
 }
-.le-tabs::-webkit-scrollbar {
+.lc-tabs::-webkit-scrollbar {
   display: none;
 }
-.le-tab {
+.lc-tab {
   flex: 0 0 auto;
   min-width: 64px;
   padding: 6px 10px;
@@ -206,10 +206,10 @@ export const CSS = /* css */ `
   white-space: nowrap;
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
-.le-tab:hover {
+.lc-tab:hover {
   color: #1c1c1e;
 }
-.le-tab.le-active {
+.lc-tab.lc-active {
   background: #ffffff;
   color: #007aff;
   font-weight: 600;
@@ -217,7 +217,7 @@ export const CSS = /* css */ `
 }
 
 /* 搜索框 */
-.le-search-wrap {
+.lc-search-wrap {
   flex: none;
   display: flex;
   align-items: center;
@@ -229,22 +229,22 @@ export const CSS = /* css */ `
   background: rgba(118, 118, 128, 0.12);
   transition: box-shadow 0.15s ease, background 0.15s ease;
 }
-.le-search-wrap:focus-within {
+.lc-search-wrap:focus-within {
   background: rgba(118, 118, 128, 0.08);
   box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
 }
-.le-search-icon {
+.lc-search-icon {
   flex: none;
   width: 14px;
   height: 14px;
   color: #8e8e93;
   display: flex;
 }
-.le-search-icon svg {
+.lc-search-icon svg {
   width: 100%;
   height: 100%;
 }
-.le-search {
+.lc-search {
   flex: 1;
   min-width: 0;
   height: 100%;
@@ -254,10 +254,10 @@ export const CSS = /* css */ `
   font-size: 13px;
   color: #1c1c1e;
 }
-.le-search::placeholder {
+.lc-search::placeholder {
   color: #aeaeb2;
 }
-.le-search-count {
+.lc-search-count {
   flex: none;
   font-size: 11px;
   font-weight: 600;
@@ -270,7 +270,7 @@ export const CSS = /* css */ `
 }
 
 /* 列表 */
-.le-list {
+.lc-list {
   flex: 1;
   overflow-y: auto;
   background: rgba(255, 255, 255, 0.75);
@@ -278,7 +278,7 @@ export const CSS = /* css */ `
   touch-action: pan-y;
 }
 
-.le-row {
+.lc-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -287,15 +287,15 @@ export const CSS = /* css */ `
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.14);
   transition: background 0.12s ease;
 }
-.le-row:hover {
+.lc-row:hover {
   background: rgba(0, 122, 255, 0.05);
 }
 
 /* 媒体行（视频 / 音频）：默认单行，点击「播放」展开播放器后变纵向卡片 */
-.le-row-media {
+.lc-row-media {
   height: 50px;
 }
-.le-row-media[data-open="true"] {
+.lc-row-media[data-open="true"] {
   flex-direction: column;
   align-items: stretch;
   height: auto;
@@ -303,21 +303,21 @@ export const CSS = /* css */ `
   gap: 8px;
   background: rgba(0, 122, 255, 0.04);
 }
-.le-meta {
+.lc-meta {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.le-player-slot {
+.lc-player-slot {
   display: none;
   width: 100%;
 }
-.le-row-media[data-open="true"] .le-player-slot {
+.lc-row-media[data-open="true"] .lc-player-slot {
   display: block;
 }
-.le-player-video {
+.lc-player-video {
   width: 100%;
   aspect-ratio: 16 / 9;
   max-height: 260px;
@@ -327,20 +327,20 @@ export const CSS = /* css */ `
   outline: none;
   display: block;
 }
-.le-player-audio-wrap {
+.lc-player-audio-wrap {
   display: flex;
   align-items: center;
   padding: 5px 10px;
   border-radius: 999px;
   background: rgba(118, 118, 128, 0.14);
 }
-.le-player-audio {
+.lc-player-audio {
   width: 100%;
   height: 32px;
   outline: none;
 }
 /* 播放 / 关闭 双态按钮 */
-.le-play {
+.lc-play {
   flex: none;
   width: 60px;
   padding: 4px 0;
@@ -353,25 +353,25 @@ export const CSS = /* css */ `
   cursor: pointer;
   transition: background 0.12s ease, transform 0.12s ease;
 }
-.le-play:hover {
+.lc-play:hover {
   background: rgba(175, 82, 222, 0.22);
 }
-.le-play:active {
+.lc-play:active {
   transform: scale(0.94);
 }
-.le-play.le-open {
+.lc-play.lc-open {
   background: rgba(255, 59, 48, 0.12);
   color: #ff3b30;
 }
-.le-play.le-open:hover {
+.lc-play.lc-open:hover {
   background: rgba(255, 59, 48, 0.22);
 }
-.le-btns {
+.lc-btns {
   flex: none;
   display: flex;
   gap: 6px;
 }
-.le-link {
+.lc-link {
   flex: 1;
   min-width: 0;
   font-size: 13px;
@@ -381,12 +381,12 @@ export const CSS = /* css */ `
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.le-link:hover {
+.lc-link:hover {
   color: #007aff;
 }
 
 /* 搜索命中高亮 */
-.le-hl {
+.lc-hl {
   background: rgba(255, 214, 10, 0.45);
   color: inherit;
   border-radius: 3px;
@@ -394,7 +394,7 @@ export const CSS = /* css */ `
 }
 
 /* 图片预览缩略图 */
-.le-thumb {
+.lc-thumb {
   flex: none;
   width: 40px;
   height: 32px;
@@ -404,14 +404,14 @@ export const CSS = /* css */ `
   box-shadow: 0 0 0 0.5px rgba(60, 60, 67, 0.22);
   display: block;
 }
-.le-thumb.le-thumb-error {
+.lc-thumb.lc-thumb-error {
   display: flex;
   align-items: center;
   justify-content: center;
   color: #aeaeb2;
   font-size: 9px;
 }
-.le-copy {
+.lc-copy {
   flex: none;
   width: 60px;
   padding: 4px 0;
@@ -424,13 +424,13 @@ export const CSS = /* css */ `
   cursor: pointer;
   transition: background 0.12s ease, transform 0.12s ease;
 }
-.le-copy:hover {
+.lc-copy:hover {
   background: rgba(0, 122, 255, 0.2);
 }
-.le-copy:active {
+.lc-copy:active {
   transform: scale(0.94);
 }
-.le-dl {
+.lc-dl {
   flex: none;
   width: 60px;
   padding: 4px 0;
@@ -443,13 +443,13 @@ export const CSS = /* css */ `
   cursor: pointer;
   transition: background 0.12s ease, transform 0.12s ease;
 }
-.le-dl:hover {
+.lc-dl:hover {
   background: rgba(52, 199, 89, 0.24);
 }
-.le-dl:active {
+.lc-dl:active {
   transform: scale(0.94);
 }
-.le-empty {
+.lc-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -459,14 +459,14 @@ export const CSS = /* css */ `
   color: #aeaeb2;
   font-size: 13px;
 }
-.le-empty svg {
+.lc-empty svg {
   width: 40px;
   height: 40px;
   opacity: 0.4;
 }
 
 /* 缩放手柄（右下角） */
-.le-resize {
+.lc-resize {
   position: absolute;
   right: 2px;
   bottom: 2px;
@@ -481,10 +481,10 @@ export const CSS = /* css */ `
   border-radius: 10px 0 10px 0;
   transition: background 0.15s ease;
 }
-.le-resize:hover {
+.lc-resize:hover {
   background: rgba(0, 122, 255, 0.12);
 }
-.le-resize-icon {
+.lc-resize-icon {
   width: 14px;
   height: 14px;
   flex: none;
@@ -496,13 +496,13 @@ export const CSS = /* css */ `
   pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
-.le-resize:hover .le-resize-icon {
+.lc-resize:hover .lc-resize-icon {
   opacity: 1;
   transform: scale(1.1);
 }
 
 /* Toast */
-.le-toast {
+.lc-toast {
   position: fixed;
   z-index: 2147483647;
   left: 50%;
@@ -516,10 +516,10 @@ export const CSS = /* css */ `
   padding: 9px 18px;
   border-radius: 999px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-  animation: le-toast-in 0.25s ease;
+  animation: lc-toast-in 0.25s ease;
   pointer-events: none;
 }
-@keyframes le-toast-in {
+@keyframes lc-toast-in {
   from {
     opacity: 0;
     transform: translate(-50%, 8px);
@@ -531,10 +531,10 @@ export const CSS = /* css */ `
 }
 
 /* 识别中 */
-.le-fab.le-busy svg {
-  animation: le-spin 0.9s linear infinite;
+.lc-fab.lc-busy svg {
+  animation: lc-spin 0.9s linear infinite;
 }
-@keyframes le-spin {
+@keyframes lc-spin {
   to {
     transform: rotate(360deg);
   }

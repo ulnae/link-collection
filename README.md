@@ -102,13 +102,13 @@ npm run typecheck  # TypeScript 类型检查（不产出文件）
 3. 刷新目标网页（`Ctrl+R`）使新的内容脚本注入；
 4. 在目标页面按 `F12` 打开 DevTools：
    - **Console**：悬浮按钮与悬浮窗的日志/报错会出现在页面控制台；
-   - **Elements**：插件 UI 位于 `<div id="link-easy-host">` 内的 Shadow Root 中，可在其中直接审查/临时修改样式；
+   - **Elements**：插件 UI 位于 `<div id="link-collection-host">` 内的 Shadow Root 中，可在其中直接审查/临时修改样式；
 5. 若插件行为异常，可先在扩展页点击「移除」后重新「加载已解压的扩展程序」排除缓存问题。
 
 ### 项目结构
 
 ```
-link-easy/
+link-collection/
 ├── manifest.json          # Chrome 插件清单（MV3：内容脚本、background、downloads 权限、图标）
 ├── package.json           # 依赖与 npm 脚本（build / dev / icons / typecheck）
 ├── tsconfig.json          # TypeScript 配置（strict 模式）
@@ -124,7 +124,7 @@ link-easy/
 │   └── style.ts           # iOS 风格样式（字符串形式注入 Shadow DOM）
 ├── dist/                  # 构建产物（即「加载已解压扩展」的目录）
 │   ├── manifest.json
-│   ├── link-easy.content.js
+│   ├── content.js
 │   ├── background.js
 │   └── assets/            # 插件图标
 └── README.md              # 本文档
@@ -132,7 +132,7 @@ link-easy/
 
 ### 实现要点（二次开发参考）
 
-- **入口**：`src/content.ts` 是内容脚本主逻辑，构建为 IIFE 格式的 `dist/link-easy.content.js`，在 `document_idle` 时机注入所有页面（`<all_urls>`），通过 `#link-easy-host` 宿主元素 + `attachShadow` 防止重复注入；
+- **入口**：`src/content.ts` 是内容脚本主逻辑，构建为 IIFE 格式的 `dist/content.js`，在 `document_idle` 时机注入所有页面（`<all_urls>`），通过 `#link-collection-host` 宿主元素 + `attachShadow` 防止重复注入；
 - **双入口构建**：`scripts/build.mjs` 用 Vite JS API 分两次打包（content 与 background 各自为独立 IIFE），避免 IIFE 不支持多入口代码分割的限制；dev 模式加 `--watch` 参数监听变更；
 - **样式**：`src/style.ts` 导出 CSS 字符串，在 Shadow DOM 内生效——修改 UI 外观只需改这里，无需处理与页面样式的冲突；
 - **识别逻辑**：`scanLinks()` 集中在 `content.ts` 中，按分类查询 DOM 并过滤 http/https，如需新增分类，在 `CATS` 数组和 `scanLinks()` 中同步扩展即可；
