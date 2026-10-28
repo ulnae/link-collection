@@ -81,64 +81,41 @@ export const CSS = /* css */ `
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 10px 12px 10px 14px;
   cursor: grab;
   flex: none;
   user-select: none;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.14);
 }
 .le-header:active {
   cursor: grabbing;
 }
-.le-header .le-dot-group {
+.le-title-wrap {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  gap: 8px;
-  flex: none;
+  align-items: center;
+  gap: 9px;
 }
-.le-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: none;
-  padding: 0;
-  position: relative;
-  background: transparent;
+.le-title-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8.5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s ease;
+  background: linear-gradient(135deg, #5ac8fa, #007aff 55%, #0a46d6);
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
-.le-dot::before {
-  content: "";
-  position: absolute;
-  inset: 4.5px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12);
-  transition: filter 0.15s ease;
-}
-.le-dot-close::before {
-  background: #ff5f57;
-}
-.le-dot:hover {
-  transform: scale(1.08);
-}
-.le-dot:hover::before {
-  filter: brightness(0.88);
-}
-.le-dot svg {
-  width: 8px;
-  height: 8px;
+.le-title-icon svg {
+  width: 15px;
+  height: 15px;
   display: block;
-  position: relative;
-  z-index: 1;
-  stroke: rgba(0, 0, 0, 0.55);
-  stroke-width: 2;
-  stroke-linecap: round;
-  fill: none;
   pointer-events: none;
 }
 .le-title {
-  flex: 1;
   font-size: 15px;
   font-weight: 600;
   color: #1c1c1e;
@@ -150,19 +127,53 @@ export const CSS = /* css */ `
 .le-count {
   flex: none;
   font-size: 12px;
-  font-weight: 600;
-  color: #007aff;
-  background: rgba(0, 122, 255, 0.12);
-  border-radius: 999px;
-  padding: 3px 10px;
-}
-
-/* 状态栏 */
-.le-status {
-  flex: none;
-  padding: 0 16px 8px;
-  font-size: 12px;
+  font-weight: 500;
   color: #8e8e93;
+  background: rgba(118, 118, 128, 0.14);
+  border-radius: 999px;
+  padding: 4px 11px;
+  white-space: nowrap;
+}
+.le-count b {
+  font-size: 13px;
+  font-weight: 700;
+  color: #007aff;
+  font-variant-numeric: tabular-nums;
+}
+.le-close {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: none;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(120, 120, 128, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.le-close svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+  stroke: #8e8e93;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+  pointer-events: none;
+  transition: stroke 0.15s ease;
+}
+.le-close:hover {
+  background: #ff3b30;
+  transform: scale(1.06);
+}
+.le-close:hover svg {
+  stroke: #fff;
+}
+.le-close:active {
+  transform: scale(0.92);
 }
 
 /* 分段控制器 (Segmented Control) */
@@ -170,7 +181,7 @@ export const CSS = /* css */ `
   flex: none;
   display: flex;
   gap: 2px;
-  margin: 0 12px 10px;
+  margin: 10px 12px ;
   padding: 2px;
   background: rgba(118, 118, 128, 0.14);
   border-radius: 10px;
@@ -245,6 +256,17 @@ export const CSS = /* css */ `
 }
 .le-search::placeholder {
   color: #aeaeb2;
+}
+.le-search-count {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #007aff;
+  background: rgba(0, 122, 255, 0.12);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* 列表 */

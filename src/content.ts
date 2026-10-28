@@ -20,13 +20,13 @@ interface CatDef {
 }
 
 const CATS: CatDef[] = [
-  { key: 'image', label: '图片资源' },
-  { key: 'audio', label: '音频资源' },
-  { key: 'video', label: '视频资源' },
-  { key: 'iframe', label: '嵌入页面' },
-  { key: 'script', label: '脚本资源' },
-  { key: 'css', label: '样式资源' },
-  { key: 'font', label: '字体资源' }
+  { key: 'image', label: '图片' },
+  { key: 'audio', label: '音频' },
+  { key: 'video', label: '视频' },
+  { key: 'iframe', label: '内联' },
+  { key: 'script', label: '脚本' },
+  { key: 'css', label: '样式' },
+  { key: 'font', label: '字体' }
 ];
 
 /** CSS url() 资源按扩展名归类 */
@@ -80,7 +80,7 @@ function init(): void {
   /* ---------- 状态 ---------- */
   let panel: HTMLDivElement | null = null;
   let listEl: HTMLDivElement | null = null; // 滚动视口
-  let statusEl: HTMLDivElement | null = null;
+  let matchEl: HTMLSpanElement | null = null; // 搜索框内的匹配数徽章
   let countEl: HTMLSpanElement | null = null;
   let linkMap: Record<CatKey, string[]> = createEmptyMap();
   let activeTab: CatKey = 'image';
@@ -366,33 +366,32 @@ function init(): void {
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;
 
-    // 头部：红点关闭 / 黄点最小化 / 标题 / 总数
+    // 头部：图标徽章 + 标题 / 总数胶囊 / 关闭按钮
     const header = document.createElement('div');
     header.className = 'le-header';
 
-    const dots = document.createElement('span');
-    dots.className = 'le-dot-group';
-    const btnClose = document.createElement('button');
-    btnClose.className = 'le-dot le-dot-close';
-    btnClose.title = '关闭';
-    btnClose.innerHTML = ICON_CLOSE;
-    btnClose.addEventListener('click', () => closePanel());
-    dots.appendChild(btnClose);
-
+    const titleWrap = document.createElement('span');
+    titleWrap.className = 'le-title-wrap';
+    const titleIcon = document.createElement('span');
+    titleIcon.className = 'le-title-icon';
+    titleIcon.innerHTML = ICON_LINK;
     const title = document.createElement('span');
     title.className = 'le-title';
-    title.textContent = '链接收集';
+    title.textContent = 'Link Collection';
+    titleWrap.append(titleIcon, title);
 
     countEl = document.createElement('span');
     countEl.className = 'le-count';
-    countEl.textContent = `共 ${total} 条`;
+    countEl.innerHTML = `共 <b>${total}</b> 条`;
 
-    header.append(dots, title, countEl);
+    const btnClose = document.createElement('button');
+    btnClose.className = 'le-close';
+    btnClose.title = '关闭';
+    btnClose.innerHTML = ICON_CLOSE;
+    btnClose.addEventListener('click', () => closePanel());
+
+    header.append(titleWrap, countEl, btnClose);
     panel.appendChild(header);
-
-    statusEl = document.createElement('div');
-    statusEl.className = 'le-status';
-    panel.appendChild(statusEl);
 
     // 分段控制器（窄窗口时横向滑动，选中项自动居中）
     const tabs = document.createElement('div');
@@ -430,7 +429,9 @@ function init(): void {
       searchQuery = searchInput.value.trim();
       renderList();
     });
-    searchWrap.append(searchIcon, searchInput);
+    matchEl = document.createElement('span');
+    matchEl.className = 'le-search-count';
+    searchWrap.append(searchIcon, searchInput, matchEl);
     panel.appendChild(searchWrap);
 
     // 列表（全量渲染 + 图片懒加载：进入视口才发起请求，仅加载一次）
@@ -447,8 +448,8 @@ function init(): void {
 
     shadow.appendChild(panel);
 
-    // 拖拽移动（仅头部，排除按钮）
-    makeDraggable(panel, header, ['.le-dot']);
+    // 拖拽移动（仅头部，排除关闭按钮）
+    makeDraggable(panel, header, ['.le-close']);
     // 右下角缩放
     makeResizable(panel, resize);
 
@@ -462,7 +463,7 @@ function init(): void {
     panel?.remove();
     panel = null;
     listEl = null;
-    statusEl = null;
+    matchEl = null;
     countEl = null;
   }
 
@@ -682,14 +683,17 @@ function init(): void {
   }
 
   function renderList(): void {
-    if (!listEl || !statusEl) return;
+    if (!listEl) return;
     const links = linkMap[activeTab];
-    const cat = CATS.find((c) => c.key === activeTab)!;
     filteredLinks = matchLinks(links, searchQuery);
-    if (searchQuery) {
-      statusEl.textContent = `${cat.label} · 匹配 ${filteredLinks.length} / ${links.length} 条`;
-    } else {
-      statusEl.textContent = `${cat.label} · 识别到 ${links.length} 条`;
+    // 检索时在搜索框内右侧显示「匹配数 / 总数」
+    if (matchEl) {
+      if (searchQuery) {
+        matchEl.textContent = `${filteredLinks.length}/${links.length}`;
+        matchEl.style.display = '';
+      } else {
+        matchEl.style.display = 'none';
+      }
     }
     listEl.scrollTop = 0;
     listEl.innerHTML = '';

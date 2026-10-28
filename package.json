@@ -1,8 +1,8 @@
 {
-  "name": "link-easy",
+  "name": "link-collection",
   "version": "1.0.0",
   "private": true,
-  "description": "link-easy 浏览器插件：一键识别页面中的六大类资源链接",
+  "description": "浏览器插件：一键识别页面中的资源链接",
   "scripts": {
     "dev": "node scripts/build.mjs --watch",
     "build": "npm run icons && node scripts/build.mjs",
