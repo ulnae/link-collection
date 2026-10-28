@@ -75,15 +75,6 @@ export const CSS = /* css */ `
     transform: scale(1);
   }
 }
-.le-panel.le-min {
-  height: 56px !important;
-  border-radius: 16px;
-}
-.le-panel.le-min .le-tabs,
-.le-panel.le-min .le-list,
-.le-panel.le-min .le-status {
-  display: none;
-}
 
 /* 头部 */
 .le-header {
@@ -104,32 +95,42 @@ export const CSS = /* css */ `
   flex: none;
 }
 .le-dot {
-  width: 13px;
-  height: 13px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   cursor: pointer;
   border: none;
   padding: 0;
+  position: relative;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease;
+}
+.le-dot::before {
+  content: "";
+  position: absolute;
+  inset: 4.5px;
+  border-radius: 50%;
   box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12);
-  transition: filter 0.15s ease, transform 0.15s ease;
+  transition: filter 0.15s ease;
 }
-.le-dot:hover {
-  filter: brightness(0.88);
-  transform: scale(1.12);
-}
-.le-dot-close {
+.le-dot-close::before {
   background: #ff5f57;
 }
-.le-dot-min {
-  background: #febc2e;
+.le-dot:hover {
+  transform: scale(1.08);
+}
+.le-dot:hover::before {
+  filter: brightness(0.88);
 }
 .le-dot svg {
   width: 8px;
   height: 8px;
   display: block;
+  position: relative;
+  z-index: 1;
   stroke: rgba(0, 0, 0, 0.55);
   stroke-width: 2;
   stroke-linecap: round;
@@ -202,24 +203,85 @@ export const CSS = /* css */ `
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
-/* 列表 */
+/* 搜索框 */
+.le-search-wrap {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 12px 10px;
+  padding: 0 10px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(118, 118, 128, 0.12);
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+.le-search-wrap:focus-within {
+  background: rgba(118, 118, 128, 0.08);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+.le-search-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: #8e8e93;
+  display: flex;
+}
+.le-search-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.le-search {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #1c1c1e;
+}
+.le-search::placeholder {
+  color: #aeaeb2;
+}
+
+/* 列表（虚拟滚动容器） */
 .le-list {
   flex: 1;
   overflow-y: auto;
   background: rgba(255, 255, 255, 0.75);
   border-top: 0.5px solid rgba(60, 60, 67, 0.18);
   touch-action: pan-y;
+  position: relative;
 }
+.le-spacer {
+  width: 100%;
+  pointer-events: none;
+}
+.le-rows {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+
 .le-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 14px;
+  height: 50px;
+  padding: 0 14px;
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.14);
   transition: background 0.12s ease;
 }
 .le-row:hover {
   background: rgba(0, 122, 255, 0.05);
+}
+.le-btns {
+  flex: none;
+  display: flex;
+  gap: 6px;
 }
 .le-link {
   flex: 1;
@@ -233,6 +295,14 @@ export const CSS = /* css */ `
 }
 .le-link:hover {
   color: #007aff;
+}
+
+/* 搜索命中高亮 */
+.le-hl {
+  background: rgba(255, 214, 10, 0.45);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
 }
 
 /* 图片预览缩略图 */
@@ -272,6 +342,25 @@ export const CSS = /* css */ `
 .le-copy:active {
   transform: scale(0.94);
 }
+.le-dl {
+  flex: none;
+  width: 60px;
+  padding: 4px 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(52, 199, 89, 0.14);
+  color: #34c759;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+.le-dl:hover {
+  background: rgba(52, 199, 89, 0.24);
+}
+.le-dl:active {
+  transform: scale(0.94);
+}
 .le-empty {
   display: flex;
   flex-direction: column;
@@ -288,7 +377,7 @@ export const CSS = /* css */ `
   opacity: 0.4;
 }
 
-/* 缩放手柄（右下角，更醒目） */
+/* 缩放手柄（右下角） */
 .le-resize {
   position: absolute;
   right: 2px;

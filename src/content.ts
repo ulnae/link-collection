@@ -21,6 +21,10 @@ const CATS: CatDef[] = [
   { key: 'css', label: '样式资源' }
 ];
 
+/** 虚拟列表：固定行高（px）与上下预渲染行数 */
+const ROW_H = 50;
+const OVERSCAN = 8;
+
 const HOST_ID = 'link-easy-host';
 const FAB_POS_KEY = 'link-easy:fab-pos';
 const FAB_SIZE = 54;
@@ -36,7 +40,6 @@ const ICON_EMPTY = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.or
 </svg>`;
 
 const ICON_CLOSE = `<svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6"/></svg>`;
-const ICON_MINUS = `<svg viewBox="0 0 12 12"><path d="M2.5 6h7"/></svg>`;
 const ICON_RESIZE = `<svg class="le-resize-icon" viewBox="0 0 14 14">
   <path d="M12.5 5.5 5.5 12.5M12.5 9.5 9.5 12.5M12.5 1.5 1.5 12.5"/>
 </svg>`;
@@ -65,11 +68,15 @@ function init(): void {
 
   /* ---------- 状态 ---------- */
   let panel: HTMLDivElement | null = null;
-  let listEl: HTMLDivElement | null = null;
+  let listEl: HTMLDivElement | null = null; // 滚动视口
+  let spacerEl: HTMLDivElement | null = null; // 撑起总高度的占位层
+  let rowsLayerEl: HTMLDivElement | null = null; // 实际渲染行容器
   let statusEl: HTMLDivElement | null = null;
   let countEl: HTMLSpanElement | null = null;
   let linkMap: Record<CatKey, string[]> = createEmptyMap();
   let activeTab: CatKey = 'image';
+  let searchQuery = '';
+  let filteredLinks: string[] = [];
 
   /* ---------- 工具函数 ---------- */
   function createEmptyMap(): Record<CatKey, string[]> {
@@ -256,8 +263,7 @@ function init(): void {
   /* ---------- 主流程 ---------- */
   function onFabClick(): void {
     if (panel) {
-      // 已有面板：再次点击则恢复/切换
-      panel.classList.remove('le-min');
+      // 已有面板：再次点击唤起（保持在原位）
       return;
     }
     fab.classList.add('le-busy');
@@ -300,12 +306,7 @@ function init(): void {
     btnClose.title = '关闭';
     btnClose.innerHTML = ICON_CLOSE;
     btnClose.addEventListener('click', () => closePanel());
-    const btnMin = document.createElement('button');
-    btnMin.className = 'le-dot le-dot-min';
-    btnMin.title = '最小化 / 恢复';
-    btnMin.innerHTML = ICON_MINUS;
-    btnMin.addEventListener('click', () => toggleMinimize());
-    dots.append(btnClose, btnMin);
+    dots.appendChild(btnClose);
 
     const title = document.createElement('span');
     title.className = 'le-title';
@@ -341,9 +342,34 @@ function init(): void {
     });
     panel.appendChild(tabs);
 
-    // 列表
+    // 搜索框（模糊检索、忽略大小写、高亮匹配）
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'le-search-wrap';
+    const searchIcon = document.createElement('span');
+    searchIcon.className = 'le-search-icon';
+    searchIcon.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16.5 16.5 21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    const searchInput = document.createElement('input');
+    searchInput.className = 'le-search';
+    searchInput.type = 'text';
+    searchInput.placeholder = '搜索链接，多个关键词用空格分隔';
+    searchInput.spellcheck = false;
+    searchInput.addEventListener('input', () => {
+      searchQuery = searchInput.value.trim();
+      renderList();
+    });
+    searchWrap.append(searchIcon, searchInput);
+    panel.appendChild(searchWrap);
+
+    // 列表（虚拟滚动：占位层撑高 + 行容器平移）
     listEl = document.createElement('div');
     listEl.className = 'le-list';
+    spacerEl = document.createElement('div');
+    spacerEl.className = 'le-spacer';
+    rowsLayerEl = document.createElement('div');
+    rowsLayerEl.className = 'le-rows';
+    listEl.append(spacerEl, rowsLayerEl);
+    listEl.addEventListener('scroll', renderVisibleRows, { passive: true });
     panel.appendChild(listEl);
 
     // 缩放手柄
@@ -371,69 +397,205 @@ function init(): void {
     countEl = null;
   }
 
-  function toggleMinimize(): void {
-    if (!panel) return;
-    const min = panel.classList.toggle('le-min');
-    if (!min) {
-      // 恢复时保证在视口内
-      const r = panel.getBoundingClientRect();
-      panel.style.width = `${Math.max(360, r.width)}px`;
-      panel.style.height = `${clamp(r.height, 240, innerHeight - 40)}px`;
-      panel.style.left = `${clamp(r.left, 0, Math.max(0, innerWidth - r.width))}px`;
-      panel.style.top = `${clamp(r.top, 0, Math.max(0, innerHeight - 56))}px`;
+  /* ---------- 搜索 / 虚拟列表 ---------- */
+
+  /** 模糊检索：忽略大小写的子串匹配，支持空格分隔多个关键词（需全部命中） */
+  function matchLinks(links: string[], query: string): string[] {
+    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return links;
+    return links.filter((url) => {
+      const lower = url.toLowerCase();
+      return tokens.every((t) => lower.includes(t));
+    });
+  }
+
+  /** 计算所有关键词在文本中的高亮区间（忽略大小写，合并重叠） */
+  function findRanges(text: string, tokens: string[]): Array<[number, number]> {
+    const lower = text.toLowerCase();
+    const ranges: Array<[number, number]> = [];
+    for (const t of tokens) {
+      if (!t) continue;
+      const lt = t.toLowerCase();
+      let i = lower.indexOf(lt);
+      while (i !== -1) {
+        ranges.push([i, i + lt.length]);
+        i = lower.indexOf(lt, i + lt.length);
+      }
     }
+    ranges.sort((a, b) => a[0] - b[0]);
+    const merged: Array<[number, number]> = [];
+    for (const r of ranges) {
+      const last = merged[merged.length - 1];
+      if (last && r[0] <= last[1]) {
+        last[1] = Math.max(last[1], r[1]);
+      } else {
+        merged.push([r[0], r[1]]);
+      }
+    }
+    return merged;
+  }
+
+  /** 渲染链接文本，命中部分用 <mark> 高亮 */
+  function buildHighlighted(url: string): Node {
+    const frag = document.createDocumentFragment();
+    const tokens = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) {
+      frag.appendChild(document.createTextNode(url));
+      return frag;
+    }
+    let pos = 0;
+    for (const [start, end] of findRanges(url, tokens)) {
+      if (start > pos) frag.appendChild(document.createTextNode(url.slice(pos, start)));
+      const mark = document.createElement('mark');
+      mark.className = 'le-hl';
+      mark.textContent = url.slice(start, end);
+      frag.appendChild(mark);
+      pos = end;
+    }
+    if (pos < url.length) frag.appendChild(document.createTextNode(url.slice(pos)));
+    return frag;
+  }
+
+  /** 根据滚动位置仅渲染可视区内的行（虚拟列表核心） */
+  function renderVisibleRows(): void {
+    if (!listEl || !rowsLayerEl || !spacerEl) return;
+    const total = filteredLinks.length;
+
+    if (total === 0) {
+      spacerEl.style.height = '0px';
+      rowsLayerEl.style.transform = 'translateY(0)';
+      rowsLayerEl.innerHTML = '';
+      const empty = document.createElement('div');
+      empty.className = 'le-empty';
+      empty.style.height = `${Math.max(listEl.clientHeight, 120)}px`;
+      empty.innerHTML = activeTabIsEmpty()
+        ? `${ICON_EMPTY}<span>当前分类未识别到链接</span>`
+        : `${ICON_EMPTY}<span>没有匹配「${escapeHtml(searchQuery)}」的链接</span>`;
+      rowsLayerEl.appendChild(empty);
+      return;
+    }
+
+    const start = Math.max(
+      0,
+      Math.floor(listEl.scrollTop / ROW_H) - OVERSCAN
+    );
+    const visibleCount = Math.ceil(listEl.clientHeight / ROW_H) + OVERSCAN * 2;
+    const end = Math.min(total, start + visibleCount);
+
+    spacerEl.style.height = `${total * ROW_H}px`;
+    rowsLayerEl.style.transform = `translateY(${start * ROW_H}px)`;
+    rowsLayerEl.innerHTML = '';
+    for (let i = start; i < end; i++) {
+      rowsLayerEl.appendChild(buildRow(filteredLinks[i]));
+    }
+  }
+
+  function activeTabIsEmpty(): boolean {
+    return linkMap[activeTab].length === 0;
+  }
+
+  function escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /** 构建单行：[缩略图(图片)] 链接(高亮) [下载] [复制] */
+  function buildRow(url: string): HTMLDivElement {
+    const row = document.createElement('div');
+    row.className = 'le-row';
+
+    // 图片分类：链接前显示缩略预览
+    if (activeTab === 'image') {
+      const thumb = document.createElement('img');
+      thumb.className = 'le-thumb';
+      thumb.src = url;
+      thumb.loading = 'lazy';
+      thumb.referrerPolicy = 'no-referrer';
+      thumb.onerror = () => {
+        thumb.classList.add('le-thumb-error');
+        thumb.removeAttribute('src');
+        thumb.textContent = '失效';
+      };
+      row.appendChild(thumb);
+    }
+
+    const a = document.createElement('a');
+    a.className = 'le-link';
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.title = url;
+    a.appendChild(buildHighlighted(url));
+
+    const btns = document.createElement('span');
+    btns.className = 'le-btns';
+
+    // 嵌入页面之外的所有分类提供下载按钮
+    if (activeTab !== 'iframe') {
+      const dl = document.createElement('button');
+      dl.className = 'le-dl';
+      dl.textContent = '下载';
+      dl.title = '下载该资源';
+      dl.addEventListener('click', () => downloadFile(url));
+      btns.appendChild(dl);
+    }
+
+    const btn = document.createElement('button');
+    btn.className = 'le-copy';
+    btn.textContent = '复制';
+    btn.addEventListener('click', () => copyText(url));
+    btns.appendChild(btn);
+
+    row.append(a, btns);
+    return row;
   }
 
   function renderList(): void {
     if (!listEl || !statusEl) return;
     const links = linkMap[activeTab];
     const cat = CATS.find((c) => c.key === activeTab)!;
-    statusEl.textContent = `${cat.label} · 识别到 ${links.length} 条`;
-    listEl.innerHTML = '';
-
-    if (links.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'le-empty';
-      empty.innerHTML = `${ICON_EMPTY}<span>当前分类未识别到链接</span>`;
-      listEl.appendChild(empty);
-      return;
+    filteredLinks = matchLinks(links, searchQuery);
+    if (searchQuery) {
+      statusEl.textContent = `${cat.label} · 匹配 ${filteredLinks.length} / ${links.length} 条`;
+    } else {
+      statusEl.textContent = `${cat.label} · 识别到 ${links.length} 条`;
     }
+    listEl.scrollTop = 0;
+    renderVisibleRows();
+  }
 
-    links.forEach((url) => {
-      const row = document.createElement('div');
-      row.className = 'le-row';
+  /* ---------- 下载 ---------- */
 
-      // 图片分类：链接前显示缩略预览
-      if (activeTab === 'image') {
-        const thumb = document.createElement('img');
-        thumb.className = 'le-thumb';
-        thumb.src = url;
-        thumb.loading = 'lazy';
-        thumb.referrerPolicy = 'no-referrer';
-        thumb.onerror = () => {
-          thumb.classList.add('le-thumb-error');
-          thumb.removeAttribute('src');
-          thumb.textContent = '失效';
-        };
-        row.appendChild(thumb);
+  function downloadFile(url: string): void {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'download', url }, (res) => {
+          if (chrome.runtime.lastError || !res?.ok) {
+            fallbackDownload(url);
+            return;
+          }
+          showToast('已开始下载');
+        });
+      } else {
+        fallbackDownload(url);
       }
+    } catch {
+      fallbackDownload(url);
+    }
+  }
 
-      const a = document.createElement('a');
-      a.className = 'le-link';
-      a.href = url;
-      a.textContent = url;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.title = url;
-
-      const btn = document.createElement('button');
-      btn.className = 'le-copy';
-      btn.textContent = '复制';
-      btn.addEventListener('click', () => copyText(url));
-
-      row.append(a, btn);
-      listEl!.appendChild(row);
-    });
+  /** 后台不可用时的兜底：用 <a download> 触发（同源可下载，跨源可能直接打开） */
+  function fallbackDownload(url: string): void {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '';
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.click();
+    showToast('已尝试下载');
   }
 
   function copyText(text: string): void {
