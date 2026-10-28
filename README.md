@@ -18,17 +18,20 @@
 
 | 分类 | 识别来源 |
 | ---- | -------- |
-| 图片资源 | `img[src]` / `img[srcset]` / `picture > source` / `svg image`（含 href 与 xlink:href）/ 内联样式与 `<style>` 中的 `url(...)` 背景图 |
+| 图片资源 | `img[src]` / `img[srcset]` / `picture > source` / `svg image`（含 href 与 xlink:href）/ CSS 背景图中图片类型 url()（按扩展名 png/jpg/gif/webp/svg/avif/bmp/ico 判定） |
 | 音频资源 | `audio[src]`、`audio > source[src]` |
 | 视频资源 | `video[src]`、`video > source[src]`（按 type/扩展名自动归类） |
 | 嵌入页面 | `iframe[src]` / `frame[src]`、HTML 类型的 `object[data]` |
-| 脚本资源 | `script[src]` |
-| 样式资源 | `link[rel=stylesheet][href]` |
+| 脚本资源 | `script[src]`、`link[rel=modulepreload]`、`link[rel=preload][as=script]` |
+| 样式资源 | `link[rel=stylesheet]`、`link[rel=preload][as=style]`、CSS `@import` |
+| 字体资源 | CSS `@font-face` 的 src url()（含内联样式与同源外链 CSS）、`link[rel=preload][as=font]`、CSS url() 中 woff/woff2/ttf/otf/eot 类型 |
 
 识别规则：
 
-- 仅保留 **http/https** 协议的链接，相对路径自动解析为绝对路径；
-- 结果自动**去重**；每个分类在 tab 上实时显示数量。
+- 仅保留 **http/https** 协议的链接，相对路径自动解析为绝对路径；空 src、纯锚点（`#`）等无效引用会被排除；
+- 结果自动**去重**；每个分类在 tab 上实时显示数量；
+- 样式表通过 CSSOM 解析（`@font-face` / `@import` / `background-image`），跨域外链 CSS 因权限限制无法读取其内部规则；
+- 七个分类 tab 在悬浮窗较窄时横向滑动（无滚动条），当前选中项自动居中显示。
 
 ### 3. 悬浮窗（识别完毕后自动弹出）
 
@@ -36,10 +39,10 @@
 - **移动**：按住头部拖拽（红点关闭按钮除外）；
 - **缩放**：拖拽右下角蓝色斜线手柄调整宽高（最小 360×240，最大为屏幕的 90%），手柄悬停高亮；
 - **关闭**：点击红点（×）关闭悬浮窗，之后可再次点击悬浮按钮重新识别；
-- **Tab 切换**：6 个分类的分段控制器（Segmented Control），点击切换列表；
+- **Tab 切换**：7 个分类的分段控制器（Segmented Control），每个 tab 显示该类链接数量，点击切换列表；窗口较窄时 tab 条横向滑动且不显示滚动条，选中项自动居中，前后 tab 可直接点击切换；
 - **搜索框**：分类下方、列表上方有搜索框，支持**模糊检索、忽略大小写**（空格分隔多个关键词需全部命中），命中的字段以黄色高亮标记，状态栏实时显示匹配数；
 - **列表**：左侧显示链接（超长自动省略号，悬停看全文，点击新标签打开），右侧「下载」「复制」按钮；
-- **下载按钮**：除「嵌入页面」外的所有分类，每条链接附带绿色「下载」按钮，点击通过 `chrome.downloads` API 保存该资源；
+- **下载按钮**：除「嵌入页面」外的所有分类（含字体资源），每条链接附带绿色「下载」按钮，点击通过 `chrome.downloads` API 保存该资源；
 - **图片预览**：图片资源 tab 下每条链接左侧显示 40×32 缩略图（懒加载、`no-referrer` 防跨域泄露，加载失败显示「失效」占位）；
 - **虚拟列表**：所有分类的列表均采用虚拟滚动（固定行高、仅渲染可视区域 ± 8 行），数千条链接也保持流畅；
 - **一键复制**：点击「复制」写入剪贴板，底部弹出 iOS 风格 Toast「已复制到剪贴板」；

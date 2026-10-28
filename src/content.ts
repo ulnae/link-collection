@@ -5,7 +5,14 @@ import { CSS } from './style';
  * 悬浮按钮 + 六大类链接识别 + iOS 风格悬浮窗
  * ============================================================ */
 
-type CatKey = 'image' | 'audio' | 'video' | 'iframe' | 'script' | 'css';
+type CatKey =
+  | 'image'
+  | 'audio'
+  | 'video'
+  | 'iframe'
+  | 'script'
+  | 'css'
+  | 'font';
 
 interface CatDef {
   key: CatKey;
@@ -18,12 +25,17 @@ const CATS: CatDef[] = [
   { key: 'video', label: '视频资源' },
   { key: 'iframe', label: '嵌入页面' },
   { key: 'script', label: '脚本资源' },
-  { key: 'css', label: '样式资源' }
+  { key: 'css', label: '样式资源' },
+  { key: 'font', label: '字体资源' }
 ];
 
 /** 虚拟列表：固定行高（px）与上下预渲染行数 */
 const ROW_H = 50;
 const OVERSCAN = 8;
+
+/** CSS url() 资源按扩展名归类 */
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)([?#]|$)/i;
+const FONT_EXT_RE = /\.(woff2?|ttf|otf|eot)([?#]|$)/i;
 
 const HOST_ID = 'link-easy-host';
 const FAB_POS_KEY = 'link-easy:fab-pos';
@@ -80,12 +92,21 @@ function init(): void {
 
   /* ---------- 工具函数 ---------- */
   function createEmptyMap(): Record<CatKey, string[]> {
-    return { image: [], audio: [], video: [], iframe: [], script: [], css: [] };
+    return {
+      image: [],
+      audio: [],
+      video: [],
+      iframe: [],
+      script: [],
+      css: [],
+      font: []
+    };
   }
 
-  /** 仅保留 http/https 绝对链接 */
+  /** 仅保留 http/https 绝对链接（排除空值、纯锚点等无效引用） */
   function toHttpUrl(raw: string | null | undefined): string | null {
-    if (!raw) return null;
+    if (!raw || !raw.trim()) return null;
+    if (raw.trimStart().startsWith('#')) return null;
     try {
       const u = new URL(raw, location.href);
       return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : null;
@@ -112,7 +133,22 @@ function init(): void {
       if (url) result[key].push(url);
     };
 
-    // 图片资源：img / picture > source / srcset / svg image / 背景图
+    /** CSS url() 资源按扩展名归类：字体 → font，图片 → image，其余忽略 */
+    const pushCssUrl = (raw: string) => {
+      const url = toHttpUrl(raw);
+      if (!url) return;
+      if (FONT_EXT_RE.test(url)) push('font', url);
+      else if (IMAGE_EXT_RE.test(url)) push('image', url);
+    };
+    const extractUrls = (cssText: string): string[] => {
+      const out: string[] = [];
+      const re = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(cssText))) out.push(m[2]);
+      return out;
+    };
+
+    // 图片资源：img / picture > source / srcset / svg image
     document.querySelectorAll('img').forEach((el) => {
       push('image', toHttpUrl(el.getAttribute('src')));
       const ss = el.getAttribute('srcset');
@@ -129,17 +165,36 @@ function init(): void {
         toHttpUrl(el.getAttribute('href') || el.getAttribute('xlink:href'))
       );
     });
-    // 内联样式与 <style> 中的 background-image / url()
-    const bgRe = /url\((['"]?)(https?:\/\/[^'")\s]+)\1\)/gi;
+    // 内联 style 属性中的 url()（按扩展名归类，字体不再混入图片）
     document.querySelectorAll('[style]').forEach((el) => {
-      const st = el.getAttribute('style') || '';
-      let m: RegExpExecArray | null;
-      while ((m = bgRe.exec(st))) push('image', m[2]);
+      extractUrls(el.getAttribute('style') || '').forEach(pushCssUrl);
     });
-    document.querySelectorAll('style').forEach((el) => {
-      let m: RegExpExecArray | null;
-      while ((m = bgRe.exec(el.textContent || ''))) push('image', m[2]);
-    });
+
+    // 样式表（CSSOM）：background-image、@font-face、@import
+    // 可同时覆盖 <style> 标签与同源外链 CSS；跨域样式表读取会被拒绝，跳过
+    try {
+      for (const sheet of Array.from(document.styleSheets)) {
+        let rules: CSSRuleList;
+        try {
+          rules = sheet.cssRules;
+        } catch {
+          continue; // 跨域样式表无权读取
+        }
+        for (const rule of Array.from(rules)) {
+          if (rule instanceof CSSFontFaceRule) {
+            extractUrls(rule.style.getPropertyValue('src')).forEach((u) =>
+              push('font', toHttpUrl(u))
+            );
+          } else if (rule instanceof CSSImportRule) {
+            push('css', toHttpUrl(rule.href));
+          } else if (rule instanceof CSSStyleRule) {
+            extractUrls(rule.style.backgroundImage || '').forEach(pushCssUrl);
+          }
+        }
+      }
+    } catch {
+      /* 某些环境访问 styleSheets 可能受限，忽略 */
+    }
 
     // 音频资源
     document.querySelectorAll('audio').forEach((el) => {
@@ -151,9 +206,9 @@ function init(): void {
       const type = (el.getAttribute('type') || '').toLowerCase();
       const url = src.toLowerCase();
       const parent = el.parentElement?.tagName.toLowerCase();
-      if (parent === 'audio' || type.startsWith('audio') || /\.(mp3|wav|ogg|m4a|aac|flac)(\?|#|$)/.test(url)) {
+      if (parent === 'audio' || type.startsWith('audio') || /\.(mp3|wav|ogg|m4a|aac|flac)([?#]|$)/.test(url)) {
         push('audio', src);
-      } else if (parent === 'video' || type.startsWith('video') || /\.(mp4|webm|ogv|mov|m4v)(\?|#|$)/.test(url)) {
+      } else if (parent === 'video' || type.startsWith('video') || /\.(mp4|webm|ogv|mov|m4v)([?#]|$)/.test(url)) {
         push('video', src);
       }
     });
@@ -169,19 +224,37 @@ function init(): void {
     });
     document.querySelectorAll('object[data]').forEach((el) => {
       const d = toHttpUrl(el.getAttribute('data'));
-      if (d && /\.html?(\?|#|$)/i.test(d)) push('iframe', d);
+      if (d && /\.html?([?#]|$)/i.test(d)) push('iframe', d);
     });
 
-    // 脚本资源
+    // 脚本资源（补充：modulepreload / preload as=script）
     document.querySelectorAll('script[src]').forEach((el) => {
       push('script', toHttpUrl(el.getAttribute('src')));
     });
-
-    // 外链样式资源
     document
-      .querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"][href]')
+      .querySelectorAll<HTMLLinkElement>(
+        'link[rel="modulepreload"][href], link[rel="preload"][as="script"][href]'
+      )
+      .forEach((el) => {
+        push('script', toHttpUrl(el.getAttribute('href')));
+      });
+
+    // 外链样式资源（补充：preload as=style）
+    document
+      .querySelectorAll<HTMLLinkElement>(
+        'link[rel~="stylesheet"][href], link[rel="preload"][as="style"][href]'
+      )
       .forEach((el) => {
         push('css', toHttpUrl(el.getAttribute('href')));
+      });
+
+    // 字体资源（补充：preload as=font）
+    document
+      .querySelectorAll<HTMLLinkElement>(
+        'link[rel="preload"][as="font"][href], link[rel="preconnect"][as="font"][href]'
+      )
+      .forEach((el) => {
+        push('font', toHttpUrl(el.getAttribute('href')));
       });
 
     (Object.keys(result) as CatKey[]).forEach((k) => {
@@ -323,7 +396,7 @@ function init(): void {
     statusEl.className = 'le-status';
     panel.appendChild(statusEl);
 
-    // 分段控制器
+    // 分段控制器（窄窗口时横向滑动，选中项自动居中）
     const tabs = document.createElement('div');
     tabs.className = 'le-tabs';
     CATS.forEach((cat) => {
@@ -336,6 +409,7 @@ function init(): void {
         tabs
           .querySelectorAll('.le-tab')
           .forEach((t) => t.classList.toggle('le-active', t === tab));
+        centerTab(tabs, tab);
         renderList();
       });
       tabs.appendChild(tab);
@@ -387,6 +461,9 @@ function init(): void {
     makeResizable(panel, resize);
 
     renderList();
+    // 初始将当前选中的 tab 居中
+    const activeTabEl = tabs.querySelector<HTMLButtonElement>('.le-tab.le-active');
+    if (activeTabEl) centerTab(tabs, activeTabEl);
   }
 
   function closePanel(): void {
@@ -635,6 +712,13 @@ function init(): void {
   }
 
   /* ---------- 拖拽 / 缩放 ---------- */
+  /** 将 tab 条中的指定 tab 平滑滚动到可视区中央 */
+  function centerTab(tabs: HTMLDivElement, tab: HTMLElement): void {
+    const target =
+      tab.offsetLeft - (tabs.clientWidth - tab.offsetWidth) / 2;
+    tabs.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+  }
+
   function makeDraggable(
     target: HTMLDivElement,
     handle: HTMLDivElement,

@@ -174,14 +174,16 @@ export const CSS = /* css */ `
   padding: 2px;
   background: rgba(118, 118, 128, 0.14);
   border-radius: 10px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow-x: auto; /* 窄窗口时横向滑动，选中项自动居中 */
+  scrollbar-width: none; /* 隐藏滚动条 */
+  scroll-behavior: smooth;
 }
 .le-tabs::-webkit-scrollbar {
   display: none;
 }
 .le-tab {
-  flex: 1 0 auto;
+  flex: 0 0 auto;
+  min-width: 64px;
   padding: 6px 10px;
   border: none;
   border-radius: 8px;
