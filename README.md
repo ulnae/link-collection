@@ -43,7 +43,7 @@
 - **搜索框**：分类下方、列表上方有搜索框，支持**模糊检索、忽略大小写**（空格分隔多个关键词需全部命中），命中的字段以黄色高亮标记，状态栏实时显示匹配数；
 - **列表**：左侧显示链接（超长自动省略号，悬停看全文，点击新标签打开），右侧「下载」「复制」按钮；
 - **下载按钮**：除「嵌入页面」外的所有分类（含字体资源），每条链接附带绿色「下载」按钮，点击通过 `chrome.downloads` API 保存该资源；
-- **图片预览**：图片资源 tab 下每条链接左侧显示 40×32 缩略图（懒加载、`no-referrer` 防跨域泄露，加载失败显示「失效」占位）；
+- **图片预览**：图片资源 tab 下每条链接左侧显示 40×32 缩略图，采用**按需懒加载**——通过 IntersectionObserver 监听，缩略图进入列表可视区（含 300px 预取边距）才发起请求，且只加载一次，滚动不重复请求；`no-referrer` 防跨域泄露，加载失败显示「失效」占位；
 - **虚拟列表**：所有分类的列表均采用虚拟滚动（固定行高、仅渲染可视区域 ± 8 行），数千条链接也保持流畅；
 - **一键复制**：点击「复制」写入剪贴板，底部弹出 iOS 风格 Toast「已复制到剪贴板」；
 - **空状态**：某分类无链接时显示放大镜图标与提示文案。
@@ -118,7 +118,7 @@ link-easy/
 │   ├── icon.svg           # 图标源文件（iOS 渐变圆角底 + el-icon-link 图形）
 │   └── icon-{16,32,48,128}.png  # 各尺寸插件图标
 ├── src/
-│   ├── content.ts         # 内容脚本：链接识别、搜索高亮、虚拟列表、悬浮窗交互
+│   ├── content.ts         # 内容脚本：链接识别、搜索高亮、图片懒加载、悬浮窗交互
 │   ├── background.ts      # Service Worker：调用 chrome.downloads 实现下载
 │   └── style.ts           # iOS 风格样式（字符串形式注入 Shadow DOM）
 ├── dist/                  # 构建产物（即「加载已解压扩展」的目录）
@@ -136,7 +136,7 @@ link-easy/
 - **样式**：`src/style.ts` 导出 CSS 字符串，在 Shadow DOM 内生效——修改 UI 外观只需改这里，无需处理与页面样式的冲突；
 - **识别逻辑**：`scanLinks()` 集中在 `content.ts` 中，按分类查询 DOM 并过滤 http/https，如需新增分类，在 `CATS` 数组和 `scanLinks()` 中同步扩展即可；
 - **搜索高亮**：`matchLinks()` 做忽略大小写的关键词过滤，`findRanges()` + `buildHighlighted()` 计算并渲染命中区间；
-- **虚拟列表**：`renderVisibleRows()` 只渲染可视区 ± 8 行，行高固定 50px（`ROW_H`），改动行内容时注意保持高度一致；
+- **图片懒加载**：`setupLazyImages()` 用 IntersectionObserver（root 为列表容器，rootMargin 300px）按需设置缩略图 src，`unobserve` 保证每张图只加载一次；
 - **下载**：内容脚本发消息给 `src/background.ts`，由后者调用 `chrome.downloads.download`（需 `downloads` 权限）；后台不可用时降级为 `<a download>` 方式；
 - **图标**：改 `assets/icon.svg` 后运行 `npm run icons` 重新生成 PNG。
 

@@ -247,25 +247,13 @@ export const CSS = /* css */ `
   color: #aeaeb2;
 }
 
-/* 列表（虚拟滚动容器） */
+/* 列表 */
 .le-list {
   flex: 1;
   overflow-y: auto;
   background: rgba(255, 255, 255, 0.75);
   border-top: 0.5px solid rgba(60, 60, 67, 0.18);
   touch-action: pan-y;
-  position: relative;
-}
-.le-spacer {
-  width: 100%;
-  pointer-events: none;
-}
-.le-rows {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  will-change: transform;
 }
 
 .le-row {

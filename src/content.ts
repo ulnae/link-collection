@@ -29,13 +29,12 @@ const CATS: CatDef[] = [
   { key: 'font', label: '字体资源' }
 ];
 
-/** 虚拟列表：固定行高（px）与上下预渲染行数 */
-const ROW_H = 50;
-const OVERSCAN = 8;
-
 /** CSS url() 资源按扩展名归类 */
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)([?#]|$)/i;
 const FONT_EXT_RE = /\.(woff2?|ttf|otf|eot)([?#]|$)/i;
+
+/** 图片懒加载预取边距：距离可视区 300px 内即开始加载（仅一次） */
+const LAZY_ROOT_MARGIN = '300px';
 
 const HOST_ID = 'link-easy-host';
 const FAB_POS_KEY = 'link-easy:fab-pos';
@@ -81,14 +80,13 @@ function init(): void {
   /* ---------- 状态 ---------- */
   let panel: HTMLDivElement | null = null;
   let listEl: HTMLDivElement | null = null; // 滚动视口
-  let spacerEl: HTMLDivElement | null = null; // 撑起总高度的占位层
-  let rowsLayerEl: HTMLDivElement | null = null; // 实际渲染行容器
   let statusEl: HTMLDivElement | null = null;
   let countEl: HTMLSpanElement | null = null;
   let linkMap: Record<CatKey, string[]> = createEmptyMap();
   let activeTab: CatKey = 'image';
   let searchQuery = '';
   let filteredLinks: string[] = [];
+  let lazyObserver: IntersectionObserver | null = null;
 
   /* ---------- 工具函数 ---------- */
   function createEmptyMap(): Record<CatKey, string[]> {
@@ -435,15 +433,9 @@ function init(): void {
     searchWrap.append(searchIcon, searchInput);
     panel.appendChild(searchWrap);
 
-    // 列表（虚拟滚动：占位层撑高 + 行容器平移）
+    // 列表（全量渲染 + 图片懒加载：进入视口才发起请求，仅加载一次）
     listEl = document.createElement('div');
     listEl.className = 'le-list';
-    spacerEl = document.createElement('div');
-    spacerEl.className = 'le-spacer';
-    rowsLayerEl = document.createElement('div');
-    rowsLayerEl.className = 'le-rows';
-    listEl.append(spacerEl, rowsLayerEl);
-    listEl.addEventListener('scroll', renderVisibleRows, { passive: true });
     panel.appendChild(listEl);
 
     // 缩放手柄
@@ -533,38 +525,28 @@ function init(): void {
     return frag;
   }
 
-  /** 根据滚动位置仅渲染可视区内的行（虚拟列表核心） */
-  function renderVisibleRows(): void {
-    if (!listEl || !rowsLayerEl || !spacerEl) return;
-    const total = filteredLinks.length;
+  /** 图片懒加载：进入视口（含 300px 预取边距）才设置 src，加载一次后不再请求 */
+  function setupLazyImages(): void {
+    lazyObserver?.disconnect();
+    if (!listEl) return;
+    const imgs = listEl.querySelectorAll<HTMLImageElement>('img.le-thumb[data-src]');
+    if (imgs.length === 0) return;
 
-    if (total === 0) {
-      spacerEl.style.height = '0px';
-      rowsLayerEl.style.transform = 'translateY(0)';
-      rowsLayerEl.innerHTML = '';
-      const empty = document.createElement('div');
-      empty.className = 'le-empty';
-      empty.style.height = `${Math.max(listEl.clientHeight, 120)}px`;
-      empty.innerHTML = activeTabIsEmpty()
-        ? `${ICON_EMPTY}<span>当前分类未识别到链接</span>`
-        : `${ICON_EMPTY}<span>没有匹配「${escapeHtml(searchQuery)}」的链接</span>`;
-      rowsLayerEl.appendChild(empty);
-      return;
-    }
-
-    const start = Math.max(
-      0,
-      Math.floor(listEl.scrollTop / ROW_H) - OVERSCAN
+    lazyObserver = new IntersectionObserver(
+      (entries, observer) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const img = entry.target as HTMLImageElement;
+          if (img.dataset.src) {
+            img.src = img.dataset.src;
+            delete img.dataset.src;
+          }
+          observer.unobserve(img); // 只加载一次
+        });
+      },
+      { root: listEl, rootMargin: LAZY_ROOT_MARGIN }
     );
-    const visibleCount = Math.ceil(listEl.clientHeight / ROW_H) + OVERSCAN * 2;
-    const end = Math.min(total, start + visibleCount);
-
-    spacerEl.style.height = `${total * ROW_H}px`;
-    rowsLayerEl.style.transform = `translateY(${start * ROW_H}px)`;
-    rowsLayerEl.innerHTML = '';
-    for (let i = start; i < end; i++) {
-      rowsLayerEl.appendChild(buildRow(filteredLinks[i]));
-    }
+    imgs.forEach((img) => lazyObserver!.observe(img));
   }
 
   function activeTabIsEmpty(): boolean {
@@ -584,12 +566,11 @@ function init(): void {
     const row = document.createElement('div');
     row.className = 'le-row';
 
-    // 图片分类：链接前显示缩略预览
+    // 图片分类：链接前显示缩略预览（懒加载，src 由 IntersectionObserver 按需设置）
     if (activeTab === 'image') {
       const thumb = document.createElement('img');
       thumb.className = 'le-thumb';
-      thumb.src = url;
-      thumb.loading = 'lazy';
+      thumb.dataset.src = url;
       thumb.referrerPolicy = 'no-referrer';
       thumb.onerror = () => {
         thumb.classList.add('le-thumb-error');
@@ -641,7 +622,22 @@ function init(): void {
       statusEl.textContent = `${cat.label} · 识别到 ${links.length} 条`;
     }
     listEl.scrollTop = 0;
-    renderVisibleRows();
+    listEl.innerHTML = '';
+
+    if (filteredLinks.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'le-empty';
+      empty.style.height = `${Math.max(listEl.clientHeight, 120)}px`;
+      empty.innerHTML = activeTabIsEmpty()
+        ? `${ICON_EMPTY}<span>当前分类未识别到链接</span>`
+        : `${ICON_EMPTY}<span>没有匹配「${escapeHtml(searchQuery)}」的链接</span>`;
+      listEl.appendChild(empty);
+      return;
+    }
+
+    filteredLinks.forEach((url) => listEl!.appendChild(buildRow(url)));
+    // 图片按需加载：进入视口才请求，且只加载一次
+    setupLazyImages();
   }
 
   /* ---------- 下载 ---------- */
