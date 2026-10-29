@@ -455,7 +455,7 @@ export const CSS = /* css */ `
   width: 40px;
   height: 32px;
   border-radius: 8px;
-  object-fit: cover;
+  object-fit: contain;
   background: rgba(118, 118, 128, 0.12);
   box-shadow: 0 0 0 0.5px rgba(60, 60, 67, 0.22);
   display: block;
