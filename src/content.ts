@@ -40,6 +40,9 @@ const HOST_ID = 'link-collection-host';
 const FAB_POS_KEY = 'link-collection:fab-pos';
 const FAB_SIZE = 54;
 
+/** 悬浮窗最小宽度（与 .lc-panel 的 min-width 保持一致） */
+const MIN_PANEL_W = 320;
+
 /** Element UI el-icon-link 图形（与插件图标一致） */
 const ICON_LINK = `<svg viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path fill="#fff" d="M715.648 625.152 670.4 579.904l90.496-90.56c75.008-74.944 85.12-186.368 22.656-248.896-62.528-62.464-173.952-52.352-248.96 22.656L444.16 353.6l-45.248-45.248 90.496-90.496c100.032-99.968 251.968-110.08 339.456-22.656 87.488 87.488 77.312 239.424-22.656 339.456l-90.496 90.496zm-90.496 90.496-90.496 90.496C434.624 906.112 282.688 916.224 195.2 828.8c-87.488-87.488-77.312-239.424 22.656-339.456l90.496-90.496 45.248 45.248-90.496 90.56c-75.008 74.944-85.12 186.368-22.656 248.896 62.528 62.464 173.952 52.352 248.96-22.656l90.496-90.496zm0-362.048 45.248 45.248L398.848 670.4 353.6 625.152z"/>
@@ -431,7 +434,10 @@ function init(): void {
       0
     );
 
-    const w = Math.round(innerWidth / 2);
+    const w = Math.min(
+      Math.round(innerWidth * 0.9),
+      Math.max(MIN_PANEL_W, Math.round(innerWidth / 2))
+    );
     const h = Math.round(innerHeight / 2);
     const left = Math.round((innerWidth - w) / 2);
     const top = Math.round((innerHeight - h) / 2);
@@ -470,14 +476,26 @@ function init(): void {
     header.append(titleWrap, countEl, btnClose);
     panel.appendChild(header);
 
-    // 分段控制器（窄窗口时横向滑动，选中项自动居中）
+    // 工具行：左侧 tab 栏（固定宽度，约显示 3 项）+ 右侧搜索框（占满剩余宽度）
+    const toolbar = document.createElement('div');
+    toolbar.className = 'lc-toolbar';
+
+    // 分段控制器（固定宽度，窄窗口时可横向滑动，选中项自动居中）
     const tabs = document.createElement('div');
     tabs.className = 'lc-tabs';
     CATS.forEach((cat) => {
       const tab = document.createElement('button');
       tab.className = 'lc-tab' + (cat.key === activeTab ? ' lc-active' : '');
       tab.dataset.key = cat.key;
-      tab.textContent = `${cat.label} ${linkMap[cat.key].length}`;
+      // 分类名 + 右上角上浮的条数小字（同一行，单行高度）
+      const label = document.createElement('span');
+      label.className = 'lc-tab-label';
+      label.textContent = cat.label;
+      const num = document.createElement('span');
+      num.className = 'lc-tab-num';
+      num.textContent = String(linkMap[cat.key].length);
+      tab.append(label, num);
+      if (linkMap[cat.key].length === 0) tab.classList.add('lc-zero');
       tab.addEventListener('click', () => {
         activeTab = cat.key;
         tabs
@@ -488,7 +506,8 @@ function init(): void {
       });
       tabs.appendChild(tab);
     });
-    panel.appendChild(tabs);
+    makeTabsDraggable(tabs);
+    toolbar.appendChild(tabs);
 
     // 搜索框（模糊检索、忽略大小写、高亮匹配）
     const searchWrap = document.createElement('div');
@@ -509,7 +528,9 @@ function init(): void {
     matchEl = document.createElement('span');
     matchEl.className = 'lc-search-count';
     searchWrap.append(searchIcon, searchInput, matchEl);
-    panel.appendChild(searchWrap);
+    toolbar.appendChild(searchWrap);
+
+    panel.appendChild(toolbar);
 
     // 列表（全量渲染 + 图片懒加载：进入视口才发起请求，仅加载一次）
     listEl = document.createElement('div');
@@ -859,6 +880,47 @@ function init(): void {
   }
 
   /* ---------- 拖拽 / 缩放 ---------- */
+  /** tab 栏横向拖拽滚动：按住左右拖动查看隐藏 tab；
+   *  拖拽超过阈值后抑制本次点击，避免误切分类（触屏原生滑动不受影响） */
+  function makeTabsDraggable(tabs: HTMLDivElement): void {
+    let down = false;
+    let dragged = false;
+    let sx = 0;
+    let sl = 0;
+
+    tabs.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') return; // 触屏可直接滑动
+      down = true;
+      dragged = false;
+      sx = e.clientX;
+      sl = tabs.scrollLeft;
+    });
+    tabs.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      const dx = e.clientX - sx;
+      if (!dragged && Math.abs(dx) < 5) return; // 拖拽阈值
+      if (!dragged) {
+        dragged = true;
+        // 捕获指针：后续 pointerup 落在 tab 栏上，点击不会派发到 tab 按钮
+        try {
+          tabs.setPointerCapture(e.pointerId);
+        } catch { /* noop */ }
+        tabs.style.scrollBehavior = 'auto'; // 拖拽期间关闭平滑滚动
+      }
+      tabs.scrollLeft = sl - dx;
+    });
+    const stop = (e: PointerEvent) => {
+      if (!down) return;
+      down = false;
+      tabs.style.scrollBehavior = '';
+      try {
+        tabs.releasePointerCapture(e.pointerId);
+      } catch { /* noop */ }
+    };
+    tabs.addEventListener('pointerup', stop);
+    tabs.addEventListener('pointercancel', stop);
+  }
+
   /** 将 tab 条中的指定 tab 平滑滚动到可视区中央 */
   function centerTab(tabs: HTMLDivElement, tab: HTMLElement): void {
     const target =
@@ -926,7 +988,7 @@ function init(): void {
     });
     handle.addEventListener('pointermove', (e) => {
       if (!resizing) return;
-      const minW = 360;
+      const minW = MIN_PANEL_W;
       const minH = 240;
       target.style.width = `${clamp(sw + e.clientX - sx, minW, Math.round(innerWidth * 0.9))}px`;
       target.style.height = `${clamp(sh + e.clientY - sy, minH, Math.round(innerHeight * 0.9))}px`;

@@ -55,6 +55,9 @@ export const CSS = /* css */ `
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 320px;
+  /* 容器查询基准：根据悬浮窗宽度切换 tab 栏的展开/收起布局 */
+  container-type: inline-size;
   border-radius: 20px;
   background: rgba(246, 246, 249, 0.88);
   backdrop-filter: blur(30px) saturate(180%);
@@ -176,53 +179,106 @@ export const CSS = /* css */ `
   transform: scale(0.92);
 }
 
-/* 分段控制器 (Segmented Control) */
-.lc-tabs {
+/* 工具行：左 tab 栏 + 右搜索框 同行排列 */
+.lc-toolbar {
   flex: none;
   display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 12px;
+  min-width: 0;
+}
+
+/* 分段控制器 (Segmented Control)
+ * 宽度足够时完整展示全部 tab；不足时收窄为一半（拖拽滚动查看隐藏项） */
+.lc-tabs {
+  flex: none;
+  width: max-content; /* 默认完整展开 */
+  display: flex;
   gap: 2px;
-  margin: 10px 12px ;
   padding: 2px;
   background: rgba(118, 118, 128, 0.14);
   border-radius: 10px;
-  overflow-x: auto; /* 窄窗口时横向滑动，选中项自动居中 */
+  overflow-x: auto; /* 收窄时横向滚动查看隐藏 tab */
   scrollbar-width: none; /* 隐藏滚动条 */
   scroll-behavior: smooth;
+  user-select: none;
+  cursor: grab;
+}
+.lc-tabs:active {
+  cursor: grabbing;
+}
+@container (max-width: 640px) {
+  .lc-tabs {
+    /* 悬浮窗宽度不足时 tab 栏占一半，至少保留约 3 项的宽度 */
+    width: max(204px, 50%);
+  }
 }
 .lc-tabs::-webkit-scrollbar {
   display: none;
 }
 .lc-tab {
-  flex: 0 0 auto;
-  min-width: 64px;
-  padding: 6px 10px;
+  flex: 0 0 64px;
+  width: 64px;
+  height: 28px; /* 与搜索框等高（搜索框 32px - 分段容器上下内边距 2×2px） */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 2px;
   border: none;
   border-radius: 8px;
   background: transparent;
-  font-size: 12px;
-  font-weight: 500;
   color: #6d6d72;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
+.lc-tab-label {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+/* 条数小字：紧贴分类名右上角上浮，类似角标，不占用额外宽度 */
+.lc-tab-num {
+  position: relative;
+  top: -3px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  color: #8e8e93;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.15s ease;
+}
+.lc-tab.lc-zero .lc-tab-num {
+  color: #aeaeb2;
+}
 .lc-tab:hover {
+  color: #1c1c1e;
+}
+.lc-tab:hover .lc-tab-num {
   color: #1c1c1e;
 }
 .lc-tab.lc-active {
   background: #ffffff;
   color: #007aff;
-  font-weight: 600;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
+.lc-tab.lc-active .lc-tab-label {
+  font-weight: 600;
+}
+.lc-tab.lc-active .lc-tab-num {
+  color: #007aff;
+  font-weight: 700;
+}
 
-/* 搜索框 */
+/* 搜索框：占满工具行剩余宽度 */
 .lc-search-wrap {
-  flex: none;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0 12px 10px;
   padding: 0 10px;
   height: 32px;
   border-radius: 10px;
