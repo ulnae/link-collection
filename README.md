@@ -53,7 +53,23 @@
 
 ## 安装使用
 
-### 安装步骤（加载已解压的扩展程序）
+### 方式一：下载 Release 压缩包（推荐，普通用户）
+
+无需安装 Node.js，也不用自己构建：
+
+1. 打开本仓库的 GitHub **Releases** 页面（`https://github.com/ulnae/link-easy/releases`）；
+2. 在最新 Release 的 **Assets** 中下载 `link-collection-vX.X.X.zip`；
+3. **解压** zip 到任意位置，解压后得到的文件夹内应直接包含 `manifest.json`、`content.js`、`background.js`、`assets/`（不要多套一层目录）；
+4. 打开 Chrome（或 Edge 等 Chromium 内核浏览器），地址栏访问 `chrome://extensions/`（Edge 为 `edge://extensions/`）；
+5. 右上角开启「**开发者模式**」；
+6. 点击「**加载已解压的扩展程序**」（Edge 为「加载解压缩的扩展」），选择**第 3 步解压出来的文件夹**；
+7. 打开任意网页，页面右侧即可看到蓝色悬浮按钮，安装完成。
+
+> 说明：Chrome 已禁止拖拽安装商店外的 crx 文件，因此采用「加载已解压」方式安装；插件仅需 `downloads` 权限用于保存资源文件，所有识别均在页面本地完成。
+>
+> 注意：扩展加载的是解压后的目录，请**保留该文件夹**不要删除或移动，否则扩展会失效；浏览器更新扩展时也直接读取该目录。
+
+### 方式二：本地构建（开发者）
 
 ```bash
 npm install    # 安装依赖
@@ -64,8 +80,6 @@ npm run build  # 构建到 dist/
 2. 右上角开启「开发者模式」；
 3. 点击「加载已解压的扩展程序」，选择本项目的 **`dist` 目录**；
 4. 打开任意网页，页面右侧即可看到蓝色悬浮按钮。
-
-> 说明：Chrome 已禁止拖拽安装商店外的 crx 文件，因此采用「加载已解压」方式安装；插件仅需 `downloads` 权限用于保存资源文件，所有识别均在页面本地完成。
 
 ### 日常操作
 
@@ -93,8 +107,38 @@ npm run build  # 构建到 dist/
 npm run dev        # 监听 src/ 变更，自动构建到 dist/（推荐开发时挂后台）
 npm run build      # 一次性完整构建（先生成图标，再打包内容脚本）
 npm run icons      # 仅重新生成插件图标（assets/icon.svg → 16/32/48/128 PNG）
+npm run pack       # 构建 + 压缩为 link-collection-v{version}.zip（本地模拟发版产物）
 npm run typecheck  # TypeScript 类型检查（不产出文件）
 ```
+
+### 发版流程（tag → 自动 Release）
+
+推送 `v` 开头的标签即可，GitHub Actions 会自动完成：版本号校验 → 安装依赖 → 类型检查 → 构建 → 压缩为 zip → 创建 GitHub Release 并上传压缩包（工作流见 `.github/workflows/release.yml`）。
+
+#### 一键发版（推荐）
+
+```bash
+npm run release            # patch 发版：1.0.0 → 1.0.1
+npm run release -- minor   # minor 发版：1.0.0 → 1.1.0
+npm run release -- major   # major 发版：1.0.0 → 2.0.0
+npm run release -- 1.2.3   # 指定精确版本号
+```
+
+脚本会自动完成：检查工作区干净 → 同步 `package.json` 与 `manifest.json` 两处版本号 → 提交 `release: vX.X.X` → 打标签 `vX.X.X` → 推送代码与标签触发自动发版。
+
+#### 手动打标签
+
+若不想用脚本，先手动把 `package.json` 与 `manifest.json` 的 `version` 改成一致并提交，然后：
+
+```bash
+git tag v1.0.1             # 创建标签（当前提交）
+git push origin v1.0.1     # 推送标签，Actions 随即开始构建并发布 Release
+git push                   # 如果本地还有未推送的提交，一并推送
+```
+
+构建完成后，在仓库的 **Actions** 页可查看构建进度；成功后在 **Releases** 页即可看到带 `link-collection-vX.X.X.zip` 附件的 Release，用户下载 zip 解压安装即可（见上文「方式一」）。
+
+> 也可以在发版前本地执行 `npm run pack` 验证：会在项目根目录生成与 CI 产物一致的 zip（已加入 `.gitignore`，不会误提交）。
 
 ### 调试流程
 
@@ -110,12 +154,17 @@ npm run typecheck  # TypeScript 类型检查（不产出文件）
 
 ```
 link-easy/
+├── .github/
+│   └── workflows/
+│       └── release.yml    # 发版工作流：推送 v* 标签 → 构建 → 打包 zip → 自动创建 Release
 ├── manifest.json          # Chrome 插件清单（MV3：内容脚本、background、downloads 权限、图标）
-├── package.json           # 依赖与 npm 脚本（build / dev / icons / typecheck）
+├── package.json           # 依赖与 npm 脚本（build / dev / icons / pack / release / typecheck）
 ├── tsconfig.json          # TypeScript 配置（strict 模式）
 ├── scripts/
 │   ├── build.mjs          # 构建脚本：分别打包 content 与 background 为 IIFE，并拷贝 manifest/图标
-│   └── gen-icons.mjs      # 图标生成脚本（@resvg/resvg-js 渲染 SVG → PNG）
+│   ├── gen-icons.mjs      # 图标生成脚本（@resvg/resvg-js 渲染 SVG → PNG）
+│   ├── pack.mjs           # 本地打包脚本：构建 + 压缩 dist/ 为 zip（与 CI 产物一致）
+│   └── release.mjs        # 一键发版脚本：同步版本号 → 提交 → 打 v* 标签 → 推送触发 CI
 ├── assets/
 │   ├── icon.svg           # 图标源文件（iOS 渐变圆角底 + 链条图形）
 │   └── icon-{16,32,48,128}.png  # 各尺寸插件图标

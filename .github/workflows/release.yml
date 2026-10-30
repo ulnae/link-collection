@@ -1,0 +1,56 @@
+name: Release
+
+# 推送 v* 格式的标签时触发，例如 v1.0.1
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # 校验 tag 与 package.json / manifest.json 中的版本号一致，防止发错版本
+      - name: 校验版本号
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          MANIFEST=$(node -p "require('./manifest.json').version")
+          echo "tag=$TAG package.json=$PKG manifest.json=$MANIFEST"
+          if [ "$TAG" != "$PKG" ] || [ "$TAG" != "$MANIFEST" ]; then
+            echo "::error::标签 v$TAG 与 package.json ($PKG) 或 manifest.json ($MANIFEST) 的版本号不一致，请先统一版本"
+            exit 1
+          fi
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 类型检查
+        run: npm run typecheck
+
+      - name: 构建
+        run: npm run build
+
+      # 将 dist/ 内容压缩为 zip（注意 zip 根目录即 manifest.json，解压后可直接加载）
+      - name: 打包 zip
+        run: |
+          cd dist
+          zip -r "../link-collection-${GITHUB_REF_NAME#v}.zip" .
+
+      - name: 创建 Release 并上传压缩包
+        uses: softprops/action-gh-release@v2
+        with:
+          files: link-collection-*.zip
+          generate_release_notes: true
