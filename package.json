@@ -1,6 +1,6 @@
 {
   "name": "link-collection",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "浏览器插件：一键识别页面中的资源链接",
   "scripts": {
